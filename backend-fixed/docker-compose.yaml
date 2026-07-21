@@ -1,0 +1,94 @@
+# ============================================
+# Jewellery CRM - Docker Compose (All-in-One)
+# ============================================
+# Starts PostgreSQL 16 + Redis 7 + Backend (FastAPI)
+#
+# Usage:
+#   cd backend-fixed
+#   docker compose up -d --build
+#
+# Access:
+#   - Backend API:   http://localhost:8000
+#   - API Docs:      http://localhost:8000/docs
+#   - PostgreSQL:    localhost:5432
+#   - Redis:         localhost:6379
+#
+# For the frontend: run it separately (cd frontend && npm install && npm run dev)
+# The frontend connects to http://localhost:8000 by default.
+# ============================================
+
+services:
+  # ---------------- PostgreSQL 16 ----------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: jewellery_crm_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: jewellery_admin
+      POSTGRES_PASSWORD: jewellery_secure_2026
+      POSTGRES_DB: jewellery_crm
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jewellery_admin -d jewellery_crm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------- Redis 7 ----------------
+  redis:
+    image: redis:7-alpine
+    container_name: jewellery_crm_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------- FastAPI Backend ----------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jewellery_crm_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Override DATABASE_URL to point to the "postgres" service (Docker DNS)
+      DATABASE_URL: postgresql+asyncpg://jewellery_admin:jewellery_secure_2026@postgres:5432/jewellery_crm
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "true"
+      ENVIRONMENT: development
+      ALLOWED_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001"
+      JWT_SECRET_KEY: dev-secret-change-me-in-production-please
+      FIRST_ADMIN_EMAIL: admin@jewellerycrm.com
+      FIRST_ADMIN_PASSWORD: Admin@2026!Secure
+      DEFAULT_STORE_NAME: Royal Jewellers
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Wait for DB to be fully ready, then start uvicorn
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        sleep 3 &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000
+      "
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

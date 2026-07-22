@@ -1,27 +1,24 @@
 "use client";
 
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  authApi,
-  setStoredUser,
-  setToken as persistToken,
-  getStoredUser,
-} from "@/lib/api";
-import type { UserInfo } from "@/types";
+import { authApi } from "@/lib/supabase/database";
+
+export interface UserInfo {
+  id: string;
+  username: string;
+  full_name: string;
+  email: string;
+  role: string;
+  store_id: string;
+}
 
 interface AuthCtx {
   user: UserInfo | null;
-  token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<UserInfo>;
-  logout: () => Promise<void>;
+  loginAdmin: (username: string, password: string) => Promise<UserInfo>;
+  loginEmployee: (username: string, password: string) => Promise<UserInfo>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
@@ -29,51 +26,42 @@ const AuthContext = createContext<AuthCtx | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<UserInfo | null>(null);
-  const [token, setTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    const t = localStorage.getItem("jwt_token");
-    const u = getStoredUser<UserInfo>();
-    if (t) setTokenState(t);
-    if (u) setUser(u);
+    const stored = localStorage.getItem("crm_user");
+    if (stored) {
+      try {
+        setUser(JSON.parse(stored));
+      } catch {}
+    }
     setLoading(false);
   }, []);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const res = await authApi.login(email, password);
-      const tok: string = res.access_token;
-      const u: UserInfo = res.user ?? {
-        id: "",
-        email,
-        full_name: email.split("@")[0],
-        role: "admin",
-        store_id: "",
-      };
-      persistToken(tok);
-      setStoredUser(u);
-      setTokenState(tok);
-      setUser(u);
-      return u;
-    },
-    []
-  );
+  const loginAdmin = useCallback(async (username: string, password: string) => {
+    const u = await authApi.adminLogin(username, password);
+    const info: UserInfo = u as any;
+    localStorage.setItem("crm_user", JSON.stringify(info));
+    setUser(info);
+    return info;
+  }, []);
 
-  const logout = useCallback(async () => {
-    try {
-      if (token) await authApi.logout();
-    } catch {}
-    persistToken(null);
-    setStoredUser(null);
-    setTokenState(null);
+  const loginEmployee = useCallback(async (username: string, password: string) => {
+    const u = await authApi.employeeLogin(username, password);
+    const info: UserInfo = u as any;
+    localStorage.setItem("crm_user", JSON.stringify(info));
+    setUser(info);
+    return info;
+  }, []);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem("crm_user");
     setUser(null);
-    router.push("/login");
-  }, [router, token]);
+    router.push("/");
+  }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginAdmin, loginEmployee, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,17 +1,12 @@
-import "./globals.css";
-import type { Metadata } from "next";
 import { AuthProvider } from "@/context/AuthContext";
+import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Jewellery CRM",
-  description: "Customer Journey Management for Jewellery Showrooms",
+export const metadata = {
+  title: "Royal Jewellers CRM",
+  description: "Customer Journey Management System",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>

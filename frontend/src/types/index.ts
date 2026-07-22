@@ -7,27 +7,22 @@ export type Role =
 
 export interface UserInfo {
   id: string;
-  email: string;
+  username: string;
   full_name: string;
+  email: string;
   role: Role | string;
   store_id: string;
-}
-
-export interface AuthResponse {
-  access_token: string;
-  token_type: string;
-  user?: UserInfo;
 }
 
 export interface Customer {
   id: string;
   name: string;
   phone: string;
-  gender: string;
+  gender?: string | null;
   age?: number | null;
-  city: string;
-  purpose: string;
-  budget: string;
+  city?: string | null;
+  purpose?: string | null;
+  budget?: string | null;
   remarks?: string | null;
   visit_count: number;
   first_visit: string;
@@ -43,11 +38,8 @@ export interface Ticket {
   created_by?: string | null;
   store_id?: string | null;
   status: "ACTIVE" | "COMPLETED" | "CLOSED" | "CANCELLED" | "NO_PURCHASE";
-  qr_code?: string | null;
-  barcode?: string | null;
   interested_products: string[];
   current_section: string;
-  no_purchase_reason?: string | null;
   notes?: string | null;
   created_at: string;
   closed_at?: string | null;
@@ -76,12 +68,12 @@ export interface Sale {
   salesperson_id: string;
   store_id: string;
   products?: Array<Record<string, unknown>> | null;
-  total_weight: string;
-  making_charges: string;
-  stone_weight: string;
-  gst_amount: string;
-  discount: string;
-  final_amount: string;
+  total_weight: number;
+  making_charges: number;
+  stone_weight: number;
+  gst_amount: number;
+  discount: number;
+  final_amount: number;
   invoice_number: string;
   payment_method: string;
   status: string;
@@ -93,36 +85,9 @@ export interface Invoice {
   id: string;
   sale_id: string;
   invoice_number: string;
-  pdf_url?: string | null;
   invoice_data?: Record<string, unknown> | null;
   status: string;
   created_at: string;
-}
-
-export interface MetricWidget {
-  label: string;
-  value: string;
-  trend?: string | null;
-  is_positive?: boolean | null;
-}
-
-export interface SectionOccupancy {
-  section: string;
-  count: number;
-}
-
-export interface RecentActivity {
-  id: string;
-  ticket_number: string;
-  customer_name: string;
-  action: string;
-  timestamp: string;
-}
-
-export interface AnalyticsDashboard {
-  metrics: MetricWidget[];
-  occupancy: SectionOccupancy[];
-  recent_activity: RecentActivity[];
 }
 
 export interface ShowroomSection {
@@ -133,4 +98,16 @@ export interface ShowroomSection {
   is_active: boolean;
   icon?: string | null;
   color?: string | null;
+}
+
+export interface StaffMember {
+  id: string;
+  username: string;
+  full_name: string;
+  email?: string | null;
+  phone?: string | null;
+  role: string;
+  store_id?: string | null;
+  is_active: boolean;
+  created_at: string;
 }

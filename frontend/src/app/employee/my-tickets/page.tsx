@@ -74,7 +74,7 @@ export default function MyTicketsPage() {
         status: "CLOSED",
         closed_at: now.toISOString(),
         updated_at: now.toISOString(),
-        notes: reasonText ? `Left shop: ${reasonText}` : undefined,
+        ...(reasonText ? { notes: `Left shop: ${reasonText}` } : {}),
       });
       setMessageType("success");
       setMessage(`✅ Ticket closed. ${ticket.customer?.name} has left the shop.`);
@@ -87,7 +87,7 @@ export default function MyTicketsPage() {
   }
 
   // Calculate total visit duration for a ticket
-  function getTotalDuration(ticket: any): string {
+  function getTotalDuration(ticket: any): string | null {
     if (!ticket.closed_at) return null;
     const entry = new Date(ticket.created_at).getTime();
     const exit = new Date(ticket.closed_at).getTime();
@@ -155,7 +155,7 @@ export default function MyTicketsPage() {
                         <div className="flex items-center gap-2">
                           <TicketIcon className="w-4 h-4 text-indigo-500" />
                           <span className="font-mono font-bold text-indigo-700">{t.ticket_number}</span>
-                          {isVIP && <Crown className="w-4 h-4 text-amber-500" title="VIP Customer" />}
+                          {isVIP && <Crown className="w-4 h-4 text-amber-500" />}
                         </div>
                       </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">

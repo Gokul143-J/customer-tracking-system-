@@ -34,10 +34,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [user, loading, router]);
 
-  if (loading || !user || user.role !== "admin") {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
         <div className="text-amber-400 text-lg font-medium animate-pulse">Loading admin panel…</div>
+      </div>
+    );
+  }
+
+  // Block non-admin users
+  if (user.role !== "admin") {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="text-red-400 text-lg font-medium">Access denied. Admin only.</div>
       </div>
     );
   }

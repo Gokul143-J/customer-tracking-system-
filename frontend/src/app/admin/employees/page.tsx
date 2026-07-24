@@ -10,7 +10,13 @@ import { useAuth } from "@/context/AuthContext";
 import { prettySection } from "@/lib/utils";
 
 const SECTIONS = ["reception", "gold", "silver", "diamond", "platinum"];
-const ROLES = ["receptionist", "sales_executive", "floor_manager", "store_manager", "admin"];
+const ROLES = ["admin", "receptionist", "section_manager"];
+
+const roleLabels: Record<string, string> = {
+  admin: "Admin",
+  receptionist: "Receptionist",
+  section_manager: "Section Manager",
+};
 
 export default function AdminEmployeesPage() {
   const { user } = useAuth();
@@ -240,10 +246,10 @@ export default function AdminEmployeesPage() {
                       <div className="mt-3 space-y-1 text-xs text-gray-500">
                         {emp.email && <div>📧 {emp.email}</div>}
                         {emp.phone && <div>📱 {emp.phone}</div>}
-                        <div className="flex items-center gap-1">
-                          <Shield className="w-3 h-3" />
-                          <span className="capitalize">{emp.role?.replace(/_/g, " ")}</span>
-                        </div>
+                    <div className="flex items-center gap-1">
+                      <Shield className="w-3 h-3" />
+                      <span>{roleLabels[emp.role] || emp.role}</span>
+                    </div>
                       </div>
 
                       <div className="mt-3 flex gap-2">

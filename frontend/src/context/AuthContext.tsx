@@ -4,12 +4,14 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/supabase/database";
 
+export type Role = "admin" | "receptionist" | "section_manager";
+
 export interface UserInfo {
   id: string;
   username: string;
   full_name: string;
   email: string;
-  role: string;
+  role: Role;
   store_id: string;
   assigned_section?: string;
 }

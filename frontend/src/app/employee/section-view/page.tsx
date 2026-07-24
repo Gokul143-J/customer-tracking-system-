@@ -61,14 +61,14 @@ export default function SectionViewPage() {
 
       if (!ticket) {
         setMessageType("error");
-        setMessage("Ticket not found");
+        setMessage("Ticket not found. Please check the number and try again.");
         setProcessing(false);
         return;
       }
 
       if (ticket.status !== "ACTIVE") {
         setMessageType("error");
-        setMessage(`Ticket is ${ticket.status}`);
+        setMessage(`This ticket is ${ticket.status.toLowerCase()}. Only active tickets can be scanned.`);
         setProcessing(false);
         return;
       }
@@ -76,7 +76,7 @@ export default function SectionViewPage() {
       // If ticket's target_section doesn't match my section
       if (ticket.target_section !== mySection) {
         setMessageType("error");
-        setMessage(`This customer is assigned to ${prettySection(ticket.target_section)}, not your section.`);
+        setMessage(`This customer is assigned to ${prettySection(ticket.target_section)}, not your section (${prettySection(mySection)}).`);
         setProcessing(false);
         return;
       }
@@ -141,8 +141,9 @@ export default function SectionViewPage() {
       setScannerOpen(false);
       loadCustomers();
     } catch (err: any) {
+      console.error("Scan error:", err);
       setMessageType("error");
-      setMessage(err.message || "Failed to process scan");
+      setMessage("Network error. Please check your connection and try again.");
     } finally {
       setProcessing(false);
     }
@@ -179,32 +180,49 @@ export default function SectionViewPage() {
         // Redirect to sales/billing
         router.push("/employee/sales-billing");
       } else {
-        // Customer leaving without buying
-        // Move to next section or close ticket
-        const nextAction = window.confirm(
-          `Customer ${ticket.customer?.name} is leaving ${prettySection(mySection)}.\n\nOK = Send to next section\nCancel = Customer leaving store entirely`
+        // Customer leaving without buying - ask admin to decide
+        const wantToSend = window.confirm(
+          `Customer ${ticket.customer?.name} is leaving ${prettySection(mySection)}.\n\n` +
+          `Click OK to send to another section.\n` +
+          `Click Cancel if customer is leaving the store entirely.`
         );
 
-        if (nextAction) {
-          // Send to another section
-          const nextSection = prompt("Enter next section (gold, silver, diamond, platinum):");
-          if (nextSection && ["gold", "silver", "diamond", "platinum"].includes(nextSection)) {
-            await ticketsApi.update(ticket.id, {
-              target_section: nextSection,
-              updated_at: now.toISOString(),
-            });
-            setMessageType("success");
-            setMessage(`Customer sent to ${prettySection(nextSection)}`);
+        if (wantToSend) {
+          const nextSection = prompt(
+            "Which section should they go to?\nOptions: gold, silver, diamond, platinum"
+          );
+          
+          if (!nextSection) {
+            setMessageType("error");
+            setMessage("Cancelled. No section selected.");
+            setCheckoutModal(null);
+            setProcessing(false);
+            return;
           }
+          
+          const validSections = ["gold", "silver", "diamond", "platinum"];
+          if (!validSections.includes(nextSection.toLowerCase())) {
+            setMessageType("error");
+            setMessage(`Invalid section: "${nextSection}". Must be one of: ${validSections.join(", ")}`);
+            setProcessing(false);
+            return;
+          }
+
+          await ticketsApi.update(ticket.id, {
+            target_section: nextSection.toLowerCase(),
+            updated_at: now.toISOString(),
+          });
+          setMessageType("success");
+          setMessage(`✅ Customer sent to ${prettySection(nextSection.toLowerCase())}`);
         } else {
-          // Close ticket
+          // Close ticket - customer leaving store
           await ticketsApi.update(ticket.id, {
             status: "CLOSED",
             closed_at: now.toISOString(),
             updated_at: now.toISOString(),
           });
           setMessageType("success");
-          setMessage(`Ticket closed. ${ticket.customer?.name} has left the store.`);
+          setMessage(`✅ Ticket closed. ${ticket.customer?.name} has left the store.`);
         }
       }
 
@@ -212,8 +230,9 @@ export default function SectionViewPage() {
       setSelectedTicket(null);
       loadCustomers();
     } catch (err: any) {
+      console.error("Checkout error:", err);
       setMessageType("error");
-      setMessage(err.message || "Checkout failed");
+      setMessage("Failed to process checkout. Please try again.");
     } finally {
       setProcessing(false);
     }

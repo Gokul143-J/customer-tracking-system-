@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Gem, Ticket, FileText, ShoppingBag, ClipboardList, Users, MapPin,
-  LogOut, Menu, X,
+  Gem, Ticket, FileText, ShoppingBag, ClipboardList, MapPin,
+  LogOut, Menu, X, User, Users,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { prettySection } from "@/lib/utils";
@@ -20,42 +20,32 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
     if (loading) return;
     if (!user) {
       router.replace("/employee-login");
-    } else if (user.role === "admin") {
-      router.replace("/employee-login");
-    } else {
-      // Redirect section employees to their section view by default
-      if (pathname === "/employee" || pathname === "/employee/") {
-        if (user.assigned_section && user.assigned_section !== "reception") {
-          router.replace("/employee/section-view");
-        }
-      }
     }
-  }, [user, loading, router, pathname]);
+  }, [user, loading, router]);
 
-  if (loading || !user || user.role === "admin") {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="text-indigo-400 text-lg font-medium animate-pulse">Loading employee panel…</div>
+        <div className="text-indigo-400 text-lg font-medium animate-pulse">Loading…</div>
       </div>
     );
   }
 
-  const isReception = user.assigned_section === "reception" || user.role === "receptionist";
+  const isReception = user.role === "receptionist" || user.assigned_section === "reception";
   const mySection = user.assigned_section || "gold";
 
-  // Different nav for reception vs section employees
+  // Role-based navigation
   const NAV = isReception
     ? [
-        { href: "/employee/ticket-generation", label: "New Ticket (Reception)", icon: Ticket },
-        { href: "/employee/invoice-generation", label: "Invoice Generation", icon: FileText },
+        { href: "/employee/ticket-generation", label: "New Ticket", icon: Ticket },
         { href: "/employee/sales-billing", label: "Sales & Billing", icon: ShoppingBag },
+        { href: "/employee/invoice-generation", label: "Invoices", icon: FileText },
         { href: "/employee/my-tickets", label: "All Tickets", icon: ClipboardList },
       ]
     : [
         { href: "/employee/section-view", label: `My Section: ${prettySection(mySection)}`, icon: MapPin },
         { href: "/employee/sales-billing", label: "Sales & Billing", icon: ShoppingBag },
-        { href: "/employee/invoice-generation", label: "Invoice Generation", icon: FileText },
-        { href: "/employee/my-tickets", label: "My Tickets", icon: ClipboardList },
+        { href: "/employee/invoice-generation", label: "Invoices", icon: FileText },
       ];
 
   return (
@@ -72,7 +62,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
             <div>
               <div className="text-white font-bold text-lg leading-none" style={{ fontFamily: "'Playfair Display', serif" }}>Royal</div>
               <div className="text-[10px] uppercase tracking-[0.2em] text-indigo-400/70 mt-0.5">
-                {isReception ? "Reception Desk" : prettySection(mySection)}
+                {isReception ? "Reception" : prettySection(mySection)}
               </div>
             </div>
           </Link>
@@ -82,7 +72,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-semibold px-3 mb-3 mt-2">Work Menu</div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-semibold px-3 mb-3 mt-2">Menu</div>
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             return (
@@ -112,7 +102,8 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-white truncate">{user.full_name}</div>
               <div className="text-xs text-gray-500 flex items-center gap-1">
-                <Users className="w-3 h-3" /> {user.role?.replace(/_/g, " ")} · {prettySection(mySection)}
+                <Users className="w-3 h-3" /> {user.role === "receptionist" ? "Receptionist" : "Section Manager"}
+                {!isReception && <> · {prettySection(mySection)}</>}
               </div>
             </div>
             <button onClick={logout} className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition" title="Sign out">
@@ -126,16 +117,13 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
         <div className="fixed inset-0 bg-black/60 z-30 lg:hidden backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
         <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 flex items-center px-6 lg:px-10 gap-4 sticky top-0 z-20">
           <button onClick={() => setMobileOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-gray-100">
             <Menu className="w-5 h-5 text-gray-600" />
           </button>
           <div className="flex-1">
-            <h2 className="text-lg font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>
-              Royal Jewellers
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>Royal Jewellers</h2>
             <p className="text-xs text-gray-500">
               {isReception ? "Reception Desk" : `${prettySection(mySection)} · Employee Workspace`}
             </p>
@@ -144,10 +132,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
             {new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </span>
         </header>
-
-        <div className="flex-1 p-6 lg:p-10 max-w-[1800px] w-full mx-auto">
-          {children}
-        </div>
+        <div className="flex-1 p-6 lg:p-10 max-w-[1800px] w-full mx-auto">{children}</div>
       </main>
     </div>
   );

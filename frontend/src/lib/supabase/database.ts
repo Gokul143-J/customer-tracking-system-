@@ -17,13 +17,13 @@ export const authApi = {
   adminLogin: async (username: string, password: string) => {
     const { data, error } = await supabase
       .from('staff')
-      .select('id, username, full_name, email, role, store_id, is_active')
+      .select('id, username, full_name, email, role, store_id, assigned_section, is_active')
       .eq('username', username)
       .eq('password_hash', password)
       .eq('role', 'admin')
       .eq('is_active', true)
       .single();
-    if (error || !data) throw new Error('Invalid admin credentials');
+    if (error || !data) throw new Error('Invalid admin credentials or account disabled');
     return data;
   },
 
@@ -33,10 +33,10 @@ export const authApi = {
       .select('id, username, full_name, email, role, store_id, assigned_section, is_active')
       .eq('username', username)
       .eq('password_hash', password)
-      .in('role', ['receptionist', 'sales_executive', 'floor_manager', 'store_manager'])
+      .in('role', ['receptionist', 'section_manager'])
       .eq('is_active', true)
       .single();
-    if (error || !data) throw new Error('Invalid employee credentials');
+    if (error || !data) throw new Error('Invalid employee credentials or account disabled');
     return data;
   },
 };

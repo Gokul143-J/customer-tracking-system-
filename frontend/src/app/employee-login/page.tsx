@@ -21,7 +21,8 @@ export default function EmployeeLoginPage() {
     setLoading(true);
     try {
       const u = await loginEmployee(username.trim(), password);
-      if (u.assigned_section === "reception" || u.role === "receptionist") {
+      // Receptionist goes to ticket generation, section_manager goes to their section view
+      if (u.role === "receptionist" || u.assigned_section === "reception") {
         router.push("/employee/ticket-generation");
       } else {
         router.push("/employee/section-view");

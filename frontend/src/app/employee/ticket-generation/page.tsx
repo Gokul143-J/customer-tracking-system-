@@ -36,15 +36,25 @@ export default function TicketGenerationPage() {
   const [error, setError] = useState<string | null>(null);
   const [createdTicket, setCreatedTicket] = useState<any>(null);
 
-  // Validate phone - must be exactly 10 digits
+  // Validate phone - must be exactly 10 digits, starting with 6-9 (Indian mobile)
   function validatePhone(phone: string): boolean {
     const digits = phone.replace(/\D/g, "");
-    return digits.length === 10;
+    return digits.length === 10 && /^[6-9]/.test(digits);
   }
 
   function formatPhoneDisplay(value: string): string {
+    // Remove all non-digits, limit to 10
     const digits = value.replace(/\D/g, "").slice(0, 10);
     return digits;
+  }
+
+  function getPhoneError(phone: string): string | null {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length === 0) return null;
+    if (digits.length < 10) return `Please enter 10 digits (${digits.length}/10)`;
+    if (digits.length > 10) return "Phone number cannot exceed 10 digits";
+    if (!/^[6-9]/.test(digits)) return "Mobile number must start with 6, 7, 8, or 9";
+    return null;
   }
 
   async function lookupPhone() {
@@ -78,14 +88,34 @@ export default function TicketGenerationPage() {
     e.preventDefault();
     setError(null);
 
-    if (!customer.name || !customer.phone) {
-      setError("Name and phone are required");
+    // Validate required fields
+    if (!customer.name.trim()) {
+      setError("Customer name is required");
       return;
     }
 
-    if (!validatePhone(customer.phone)) {
-      setError("Please enter a valid 10-digit mobile number");
+    if (!customer.phone) {
+      setError("Phone number is required");
       return;
+    }
+
+    const phoneErr = getPhoneError(customer.phone);
+    if (phoneErr) {
+      setError(phoneErr);
+      return;
+    }
+
+    // Check for active ticket with this phone number
+    try {
+      const existingCustomer = await customersApi.byPhone(customer.phone);
+      const activeTickets = await ticketsApi.list("ACTIVE");
+      const hasActive = activeTickets.some((t: any) => t.customer_id === existingCustomer.id);
+      if (hasActive) {
+        setError(`This customer already has an active ticket (${activeTickets.find((t: any) => t.customer_id === existingCustomer.id)?.ticket_number}). Please close it first.`);
+        return;
+      }
+    } catch {
+      // Customer doesn't exist yet, that's fine
     }
 
     setSubmitting(true);
@@ -98,6 +128,8 @@ export default function TicketGenerationPage() {
         await customersApi.update(customerId, {
           ...customer,
           age: customer.age ? Number(customer.age) : null,
+          visit_count: (existing.visit_count || 0) + 1,
+          last_visit: new Date().toISOString(),
         });
       } catch {
         const newCustomer = await customersApi.create({
@@ -282,8 +314,8 @@ export default function TicketGenerationPage() {
                 />
                 <span className="absolute right-3 top-3.5 text-xs text-gray-400">{customer.phone.length}/10</span>
               </div>
-              {customer.phone && customer.phone.length !== 10 && (
-                <p className="text-xs text-red-500 mt-1">Please enter exactly 10 digits</p>
+              {getPhoneError(customer.phone) && (
+                <p className="text-xs text-red-500 mt-1">{getPhoneError(customer.phone)}</p>
               )}
             </div>
             <div>

@@ -20,7 +20,12 @@ export default function AdminLoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await loginAdmin(username.trim(), password);
+      const u = await loginAdmin(username.trim(), password);
+      // Double check role is admin
+      if (u.role !== "admin") {
+        setError("This account does not have admin access");
+        return;
+      }
       router.push("/admin/dashboard");
     } catch (err: any) {
       setError(err?.message || "Login failed");

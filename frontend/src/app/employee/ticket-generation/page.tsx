@@ -153,7 +153,6 @@ export default function TicketGenerationPage() {
         current_section: "reception",
         status: "ACTIVE",
         created_by: user?.id,
-        store_id: user?.store_id,
       });
       setCreatedTicket(t);
       setStep("success");
@@ -372,6 +371,7 @@ export default function TicketGenerationPage() {
                 placeholder="Any notes…"
               />
             </div>
+          </div>
 
           {error && (
             <div className="rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm p-3">{error}</div>

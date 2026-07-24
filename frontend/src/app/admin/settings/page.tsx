@@ -27,7 +27,7 @@ export default function AdminSettings() {
     phone: "",
     password: "",
     role: "receptionist",
-    store_id: "",
+    assigned_section: "reception",
   });
 
   async function load() {
@@ -59,7 +59,7 @@ export default function AdminSettings() {
     try {
       await staffApi.create({ ...form, is_active: true });
       setShowForm(false);
-      setForm({ username: "", full_name: "", email: "", phone: "", password: "", role: "receptionist", store_id: "" });
+      setForm({ username: "", full_name: "", email: "", phone: "", password: "", role: "receptionist", assigned_section: "reception" });
       await load();
     } catch (err: any) {
       setFormError(err?.message || "Failed to create staff");
@@ -133,11 +133,16 @@ export default function AdminSettings() {
               <input className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               <input className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm" type="password" placeholder="Password *" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               <select className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                <option value="receptionist">Receptionist</option>
-                <option value="sales_executive">Sales Executive</option>
-                <option value="floor_manager">Floor Manager</option>
-                <option value="store_manager">Store Manager</option>
                 <option value="admin">Admin</option>
+                <option value="receptionist">Receptionist</option>
+                <option value="section_manager">Section Manager</option>
+              </select>
+              <select className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm" value={form.assigned_section || "reception"} onChange={(e) => setForm({ ...form, assigned_section: e.target.value })}>
+                <option value="reception">Reception</option>
+                <option value="gold">Gold Section</option>
+                <option value="silver">Silver Section</option>
+                <option value="diamond">Diamond Section</option>
+                <option value="platinum">Platinum Section</option>
               </select>
               {formError && <div className="md:col-span-2 text-sm text-red-600">{formError}</div>}
               <div className="md:col-span-2 flex gap-2">

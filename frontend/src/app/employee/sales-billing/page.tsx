@@ -82,7 +82,6 @@ export default function SalesBillingPage() {
         ticket_id: ticket.id,
         customer_id: ticket.customer_id,
         salesperson_id: user?.id || "",
-        store_id: user?.store_id || "",
         products: [],
         total_weight: Number(form.total_weight || 0),
         making_charges: Number(form.making_charges || 0),

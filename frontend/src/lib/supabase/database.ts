@@ -5,9 +5,9 @@ export const authApi = {
   login: async (username: string, password: string) => {
     const { data, error } = await supabase
       .from('staff')
-      .select('id, username, full_name, email, role, store_id, is_active')
+      .select('id, username, full_name, email, role, assigned_section, is_active')
       .eq('username', username)
-      .eq('password_hash', password) // In production, use proper auth
+      .eq('password_hash', password)
       .eq('is_active', true)
       .single();
     if (error || !data) throw new Error('Invalid credentials or account disabled');
@@ -17,7 +17,7 @@ export const authApi = {
   adminLogin: async (username: string, password: string) => {
     const { data, error } = await supabase
       .from('staff')
-      .select('id, username, full_name, email, role, store_id, assigned_section, is_active')
+      .select('id, username, full_name, email, role, assigned_section, is_active')
       .eq('username', username)
       .eq('password_hash', password)
       .eq('role', 'admin')
@@ -30,7 +30,7 @@ export const authApi = {
   employeeLogin: async (username: string, password: string) => {
     const { data, error } = await supabase
       .from('staff')
-      .select('id, username, full_name, email, role, store_id, assigned_section, is_active')
+      .select('id, username, full_name, email, role, assigned_section, is_active')
       .eq('username', username)
       .eq('password_hash', password)
       .in('role', ['receptionist', 'section_manager'])

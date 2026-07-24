@@ -12,7 +12,6 @@ export interface UserInfo {
   full_name: string;
   email: string;
   role: Role;
-  store_id: string;
   assigned_section?: string;
 }
 

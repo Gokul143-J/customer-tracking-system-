@@ -10,8 +10,8 @@ export interface UserInfo {
   username: string;
   full_name: string;
   email: string;
-  role: Role | string;
-  store_id: string;
+  role: Role;
+  assigned_section?: string;
 }
 
 export interface Customer {

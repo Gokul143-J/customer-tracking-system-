@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
-  MapPin, RefreshCw, Loader2, Clock, ArrowRight, Search, Eye, Filter,
+  MapPin, RefreshCw, Loader2, Clock, ArrowRight, Search, Eye, Filter, Timer,
 } from "lucide-react";
-import { ticketsApi, sectionsApi } from "@/lib/supabase/database";
-import { formatDuration, prettySection, statusColor } from "@/lib/utils";
+import { ticketsApi, sectionsApi, sectionTimeApi } from "@/lib/supabase/database";
+import { formatDateTime, formatDuration, prettySection, statusColor } from "@/lib/utils";
 import type { Ticket, Movement } from "@/types";
 
 export default function TrackCustomersPage() {
@@ -16,6 +16,7 @@ export default function TrackCustomersPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<any>(null);
   const [movements, setMovements] = useState<any[]>([]);
+  const [selectedTimeLogs, setSelectedTimeLogs] = useState<any[]>([]);
   const [loadingMov, setLoadingMov] = useState(false);
 
   async function load() {
@@ -44,8 +45,12 @@ export default function TrackCustomersPage() {
     setSelected(ticket);
     setLoadingMov(true);
     try {
-      const m = await ticketsApi.movements(ticket.id);
+      const [m, timeLogs] = await Promise.all([
+        ticketsApi.movements(ticket.id),
+        sectionTimeApi.byTicket(ticket.id),
+      ]);
       setMovements(m);
+      setSelectedTimeLogs(timeLogs);
     } catch (e) {
       console.error(e);
     } finally {
@@ -210,6 +215,32 @@ export default function TrackCustomersPage() {
                   </div>
                 )}
               </div>
+
+              {/* Section Time Tracking */}
+              <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <Timer className="w-4 h-4 text-indigo-500" /> Time Spent in Each Section
+              </h4>
+              {selectedTimeLogs.length === 0 ? (
+                <div className="text-sm text-gray-400 py-4 text-center bg-gray-50 rounded-xl mb-5">
+                  No time tracking data yet
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-5">
+                  {(() => {
+                    const sectionMap: Record<string, number> = {};
+                    selectedTimeLogs.forEach((log: any) => {
+                      const sec = log.section || 'unknown';
+                      sectionMap[sec] = (sectionMap[sec] || 0) + (log.duration_seconds || 0);
+                    });
+                    return Object.entries(sectionMap).map(([section, totalSeconds]) => (
+                      <div key={section} className="p-3 rounded-xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100">
+                        <div className="text-xs text-gray-500 capitalize mb-1">{prettySection(section)}</div>
+                        <div className="text-base font-bold text-indigo-700">{formatDuration(totalSeconds as number)}</div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              )}
 
               {/* Timeline */}
               <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">

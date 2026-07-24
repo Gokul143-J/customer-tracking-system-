@@ -30,7 +30,7 @@ export const authApi = {
   employeeLogin: async (username: string, password: string) => {
     const { data, error } = await supabase
       .from('staff')
-      .select('id, username, full_name, email, role, store_id, is_active')
+      .select('id, username, full_name, email, role, store_id, assigned_section, is_active')
       .eq('username', username)
       .eq('password_hash', password)
       .in('role', ['receptionist', 'sales_executive', 'floor_manager', 'store_manager'])
@@ -131,6 +131,17 @@ export const ticketsApi = {
     return data;
   },
 
+  update: async (id: string, payload: any) => {
+    const { data, error } = await supabase
+      .from('tickets')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
   close: async (id: string, status: string = 'CLOSED') => {
     const { data, error } = await supabase
       .from('tickets')
@@ -156,12 +167,50 @@ export const ticketsApi = {
 // ─── MOVEMENTS ──────────────────────────────────────
 export const movementsApi = {
   create: async (payload: any) => {
+    // Calculate time spent in the current section
+    const ticket = await supabase
+      .from('tickets')
+      .select('current_section, created_at')
+      .eq('id', payload.ticket_id)
+      .single();
+
+    if (ticket.data) {
+      const entryTime = new Date(ticket.data.created_at).getTime();
+      const now = Date.now();
+      const durationSeconds = Math.floor((now - entryTime) / 1000);
+
+      // Log section time
+      await supabase
+        .from('section_time_logs')
+        .insert({
+          ticket_id: payload.ticket_id,
+          customer_id: payload.customer_id,
+          section: ticket.data.current_section,
+          entry_time: ticket.data.created_at,
+          exit_time: new Date().toISOString(),
+          duration_seconds: durationSeconds,
+        });
+
+      // Update the movement with time spent
+      payload.time_spent_seconds = durationSeconds;
+    }
+
     const { data, error } = await supabase
       .from('movements')
       .insert(payload)
       .select()
       .single();
     if (error) throw error;
+
+    // Update ticket's current section
+    await supabase
+      .from('tickets')
+      .update({
+        current_section: payload.to_section,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', payload.ticket_id);
+
     return data;
   },
 
@@ -171,6 +220,39 @@ export const movementsApi = {
       .select('*, tickets(*), customers(*)')
       .order('created_at', { ascending: false })
       .limit(50);
+    if (error) throw error;
+    return data || [];
+  },
+};
+
+// ─── SECTION TIME LOGS ─────────────────────────────
+export const sectionTimeApi = {
+  create: async (payload: any) => {
+    const { data, error } = await supabase
+      .from('section_time_logs')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  byTicket: async (ticketId: string) => {
+    const { data, error } = await supabase
+      .from('section_time_logs')
+      .select('*')
+      .eq('ticket_id', ticketId)
+      .order('entry_time', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  },
+
+  byCustomer: async (customerId: string) => {
+    const { data, error } = await supabase
+      .from('section_time_logs')
+      .select('*')
+      .eq('customer_id', customerId)
+      .order('entry_time', { ascending: false });
     if (error) throw error;
     return data || [];
   },

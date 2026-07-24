@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import {
   Search, RefreshCw, Loader2, Phone, MapPin, Award, Eye, Clock,
-  ArrowRight, ChevronLeft, ChevronRight, User,
+  ArrowRight, ChevronLeft, ChevronRight, User, Timer,
 } from "lucide-react";
-import { customersApi, ticketsApi } from "@/lib/supabase/database";
-import { formatDateTime, prettySection } from "@/lib/utils";
+import { customersApi, ticketsApi, sectionTimeApi } from "@/lib/supabase/database";
+import { formatDateTime, prettySection, formatDuration } from "@/lib/utils";
 
 export default function CustomerDetailsPage() {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -14,6 +14,7 @@ export default function CustomerDetailsPage() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<any>(null);
   const [customerTickets, setCustomerTickets] = useState<any[]>([]);
+  const [sectionTimeLogs, setSectionTimeLogs] = useState<any[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
 
   async function load() {
@@ -41,6 +42,10 @@ export default function CustomerDetailsPage() {
       const allTickets = await ticketsApi.list();
       const cTickets = allTickets.filter((t: any) => t.customer_id === c.id);
       setCustomerTickets(cTickets);
+
+      // Get section time logs
+      const timeLogs = await sectionTimeApi.byCustomer(c.id);
+      setSectionTimeLogs(timeLogs);
     } catch (e) {
       console.error(e);
     } finally {
@@ -166,6 +171,49 @@ export default function CustomerDetailsPage() {
                   <div className="text-xs text-gray-500">Last Visit</div>
                 </div>
               </div>
+            </div>
+
+            {/* Section Time Tracking */}
+            <div className="p-6 border-b border-gray-100">
+              <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Timer className="w-4 h-4 text-indigo-500" /> Time Spent in Each Section
+              </h4>
+              {loadingTickets ? (
+                <div className="text-sm text-gray-400 text-center py-4">Loading time data...</div>
+              ) : sectionTimeLogs.length === 0 ? (
+                <div className="text-sm text-gray-400 text-center py-4 bg-gray-50 rounded-xl">
+                  No section time data yet. Time is tracked when customers move between sections.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {/* Aggregate time per section */}
+                  {(() => {
+                    const sectionMap: Record<string, number> = {};
+                    sectionTimeLogs.forEach((log: any) => {
+                      const sec = log.section || 'unknown';
+                      sectionMap[sec] = (sectionMap[sec] || 0) + (log.duration_seconds || 0);
+                    });
+                    return Object.entries(sectionMap).map(([section, totalSeconds]) => (
+                      <div key={section} className="p-3 rounded-xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100">
+                        <div className="text-xs text-gray-500 capitalize mb-1">{prettySection(section)}</div>
+                        <div className="text-lg font-bold text-indigo-700">{formatDuration(totalSeconds as number)}</div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {sectionTimeLogs.filter((l: any) => l.section === section).length} visit(s)
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              )}
+              {/* Total time */}
+              {sectionTimeLogs.length > 0 && (
+                <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-between">
+                  <span className="text-sm font-medium text-amber-800">Total Time Tracked</span>
+                  <span className="text-lg font-bold text-amber-700">
+                    {formatDuration(sectionTimeLogs.reduce((sum: number, log: any) => sum + (log.duration_seconds || 0), 0))}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Visit History */}

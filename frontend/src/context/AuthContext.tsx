@@ -11,6 +11,7 @@ export interface UserInfo {
   email: string;
   role: string;
   store_id: string;
+  assigned_section?: string;
 }
 
 interface AuthCtx {

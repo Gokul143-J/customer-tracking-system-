@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import {
   Users, Activity, IndianRupee, TrendingUp, TrendingDown, RefreshCw,
-  Clock, MapPin, ShoppingBag, Eye, ArrowUpRight, ArrowDownRight,
-  Calendar, Zap, Target, Gem, UserCheck,
+  ArrowUpRight, ArrowDownRight,
+  BarChart3, Zap, Target, Gem, UserCheck,
 } from "lucide-react";
 import { dashboardApi } from "@/lib/supabase/database";
-import { formatDateTime, formatTime, prettySection } from "@/lib/utils";
+import { formatTime, prettySection } from "@/lib/utils";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, CartesianGrid,
@@ -18,7 +18,6 @@ const CHART_COLORS = ["#D4AF37", "#6366f1", "#10b981", "#f43f5e", "#8b5cf6", "#0
 export default function AdminDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [time, setTime] = useState(new Date());
 
   async function load() {
     setLoading(true);
@@ -35,8 +34,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     load();
     const t = setInterval(load, 20000);
-    const c = setInterval(() => setTime(new Date()), 1000);
-    return () => { clearInterval(t); clearInterval(c); };
+    return () => clearInterval(t);
   }, []);
 
   const chartData = stats?.occupancy?.map((o: any) => ({
@@ -237,74 +235,36 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* Quick Stats / Live Clock */}
-        <div className="space-y-6">
-          <div className="rounded-2xl bg-gradient-to-br from-[#1a1520] to-[#0f0a1a] p-6 text-white relative overflow-hidden">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 rounded-full blur-2xl" />
-            </div>
-            <div className="relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-xs uppercase tracking-wider text-amber-400/70 font-semibold">Live Clock</div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs text-gray-400">Live</span>
-                </div>
-              </div>
-              <div className="text-4xl font-bold tracking-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
-                {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-              </div>
-              <div className="text-sm text-gray-400 mt-1">
-                {time.toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-              </div>
-              <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-white/10">
-                <div>
-                  <div className="text-2xl font-bold text-amber-400">{stats?.activeTickets || 0}</div>
-                  <div className="text-xs text-gray-500">In Store</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-emerald-400">{stats?.todayTickets || 0}</div>
-                  <div className="text-xs text-gray-500">Today</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-indigo-400">{stats?.totalCustomers || 0}</div>
-                  <div className="text-xs text-gray-500">Total</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Top Sections */}
-          <div className="rounded-2xl bg-white border border-gray-100 p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-gray-900 mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>Top Sections</h3>
-            {!chartData.length ? (
-              <div className="text-center py-6 text-gray-400 text-sm">No data available</div>
-            ) : (
-              <div className="space-y-3">
-                {chartData.slice(0, 5).map((item: any, i: number) => {
-                  const maxVal = Math.max(...chartData.map((d: any) => d.customers), 1);
-                  const pct = (item.customers / maxVal) * 100;
-                  return (
-                    <div key={item.name}>
-                      <div className="flex items-center justify-between text-sm mb-1.5">
-                        <span className="font-medium text-gray-700">{item.name}</span>
-                        <span className="text-gray-500 font-semibold">{item.customers}</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-700"
-                          style={{
-                            width: `${pct}%`,
-                            background: CHART_COLORS[i % CHART_COLORS.length],
-                          }}
-                        />
-                      </div>
+        {/* Top Sections */}
+        <div className="rounded-2xl bg-white border border-gray-100 p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-gray-900 mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>Top Sections</h3>
+          {!chartData.length ? (
+            <div className="text-center py-6 text-gray-400 text-sm">No data available</div>
+          ) : (
+            <div className="space-y-3">
+              {chartData.slice(0, 5).map((item: any, i: number) => {
+                const maxVal = Math.max(...chartData.map((d: any) => d.customers), 1);
+                const pct = (item.customers / maxVal) * 100;
+                return (
+                  <div key={item.name}>
+                    <div className="flex items-center justify-between text-sm mb-1.5">
+                      <span className="font-medium text-gray-700">{item.name}</span>
+                      <span className="text-gray-500 font-semibold">{item.customers}</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${pct}%`,
+                          background: CHART_COLORS[i % CHART_COLORS.length],
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -120,7 +120,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <p className="text-xs text-gray-500">Admin Control Center</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden md:inline text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">
+            <span className="hidden md:inline text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full" suppressHydrationWarning>
               {new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </span>
             <button className="relative p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition">

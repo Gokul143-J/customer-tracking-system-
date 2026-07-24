@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Gem, Shield, Users, ArrowRight, Sparkles, BarChart3, Ticket, FileText } from "lucide-react";
+import Particles from "@/components/Particles";
 
 export default function LandingPage() {
   return (
@@ -13,21 +14,8 @@ export default function LandingPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-400/3 rounded-full blur-3xl" />
       </div>
 
-      {/* Floating particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-amber-400/20 rounded-full"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 2}s`,
-            }}
-          />
-        ))}
-      </div>
+      {/* Floating particles - rendered only on client to avoid hydration mismatch */}
+      <Particles />
 
       <div className="relative z-10 text-center max-w-4xl mx-auto">
         {/* Logo */}

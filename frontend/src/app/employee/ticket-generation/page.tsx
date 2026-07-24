@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Ticket, UserPlus, Loader2, Phone, Search, CheckCircle2,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { customersApi, ticketsApi } from "@/lib/supabase/database";
 import { formatDateTime, prettySection } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -185,6 +186,19 @@ export default function TicketGenerationPage() {
                 <div className="font-bold text-amber-700 capitalize">{prettySection(createdTicket.current_section || current_section)}</div>
               </div>
             </div>
+
+            {/* QR Code */}
+            <div className="mt-6 flex justify-center">
+              <div className="p-4 bg-white rounded-xl shadow-lg">
+                <QRCodeSVG
+                  value={createdTicket.ticket_number}
+                  size={160}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">Scan QR code for quick ticket lookup</p>
           </div>
 
           <div className="mt-6 flex gap-3 justify-center">

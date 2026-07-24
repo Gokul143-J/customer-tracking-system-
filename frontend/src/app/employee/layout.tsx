@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Gem, Ticket, FileText, ShoppingBag, ClipboardList,
+  Gem, Ticket, FileText, ShoppingBag, ClipboardList, ScanLine,
   LogOut, Menu, X, Users,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const NAV = [
   { href: "/employee/ticket-generation", label: "Ticket Generation", icon: Ticket },
+  { href: "/employee/scan-section", label: "Scan Section", icon: ScanLine },
   { href: "/employee/invoice-generation", label: "Invoice Generation", icon: FileText },
   { href: "/employee/sales-billing", label: "Sales & Billing", icon: ShoppingBag },
   { href: "/employee/my-tickets", label: "My Tickets", icon: ClipboardList },
@@ -117,7 +118,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
             </h2>
             <p className="text-xs text-gray-500">Employee Workspace</p>
           </div>
-          <span className="hidden md:inline text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">
+          <span className="hidden md:inline text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full" suppressHydrationWarning>
             {new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </span>
         </header>

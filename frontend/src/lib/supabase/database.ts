@@ -237,6 +237,17 @@ export const sectionTimeApi = {
     return data;
   },
 
+  update: async (id: string, payload: any) => {
+    const { data, error } = await supabase
+      .from('section_time_logs')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
   byTicket: async (ticketId: string) => {
     const { data, error } = await supabase
       .from('section_time_logs')

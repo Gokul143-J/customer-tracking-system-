@@ -20,8 +20,12 @@ export default function EmployeeLoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await loginEmployee(username.trim(), password);
-      router.push("/employee/ticket-generation");
+      const u = await loginEmployee(username.trim(), password);
+      if (u.assigned_section === "reception" || u.role === "receptionist") {
+        router.push("/employee/ticket-generation");
+      } else {
+        router.push("/employee/section-view");
+      }
     } catch (err: any) {
       setError(err?.message || "Login failed");
     } finally {

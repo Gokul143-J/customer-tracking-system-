@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Gem, LayoutDashboard, Users, MapPin, BarChart3, Activity,
-  Settings, LogOut, Menu, X, Shield, Bell,
+  Settings, LogOut, Menu, X, Shield, Bell, UserCog,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/customer-details", label: "Customer Details", icon: Users },
   { href: "/admin/customer-activities", label: "Customer Activities", icon: Activity },
+  { href: "/admin/employees", label: "Employees", icon: UserCog },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

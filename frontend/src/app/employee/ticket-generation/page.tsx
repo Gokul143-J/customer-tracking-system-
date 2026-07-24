@@ -11,8 +11,7 @@ import { formatDateTime, prettySection } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
 const SECTIONS = [
-  "gold_ring", "gold_bangle", "gold_chain", "necklace",
-  "diamond", "silver", "platinum",
+  "gold", "silver", "diamond", "platinum",
 ];
 
 export default function TicketGenerationPage() {
@@ -32,15 +31,10 @@ export default function TicketGenerationPage() {
     city: "",
     remarks: "",
   });
-  const [interested, setInterested] = useState<string[]>([]);
-  const [current_section, setCurrentSection] = useState("reception");
+  const [targetSection, setTargetSection] = useState("gold");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdTicket, setCreatedTicket] = useState<any>(null);
-
-  function toggleSection(s: string) {
-    setInterested((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
-  }
 
   // Validate phone - must be exactly 10 digits
   function validatePhone(phone: string): boolean {
@@ -49,7 +43,6 @@ export default function TicketGenerationPage() {
   }
 
   function formatPhoneDisplay(value: string): string {
-    // Only allow digits, max 10
     const digits = value.replace(/\D/g, "").slice(0, 10);
     return digits;
   }
@@ -124,8 +117,8 @@ export default function TicketGenerationPage() {
       const t = await ticketsApi.create({
         ticket_number: ticketNum,
         customer_id: customerId,
-        interested_products: interested,
-        current_section,
+        target_section: targetSection,
+        current_section: "reception",
         status: "ACTIVE",
         created_by: user?.id,
         store_id: user?.store_id,
@@ -141,11 +134,10 @@ export default function TicketGenerationPage() {
 
   function resetForm() {
     setCustomer({ name: "", phone: "", gender: "", age: "", city: "", remarks: "" });
-    setInterested([]);
+    setTargetSection("gold");
     setPhoneLookup("");
     setFoundCustomer(null);
     setCreatedTicket(null);
-    setCurrentSection("reception");
     setStep("form");
     setError(null);
   }
@@ -182,8 +174,8 @@ export default function TicketGenerationPage() {
                 <div className="font-bold text-gray-900">{formatDateTime(createdTicket.created_at || new Date().toISOString())}</div>
               </div>
               <div>
-                <div className="text-xs text-gray-500">Section</div>
-                <div className="font-bold text-amber-700 capitalize">{prettySection(createdTicket.current_section || current_section)}</div>
+                <div className="text-xs text-gray-500">Assigned Section</div>
+                <div className="font-bold text-amber-700 capitalize">{prettySection(createdTicket.target_section || targetSection)}</div>
               </div>
             </div>
 
@@ -327,17 +319,17 @@ export default function TicketGenerationPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Starting Section</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Assign to Section *</label>
               <select
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
-                value={current_section}
-                onChange={(e) => setCurrentSection(e.target.value)}
+                value={targetSection}
+                onChange={(e) => setTargetSection(e.target.value)}
               >
-                <option value="reception">Reception</option>
                 {SECTIONS.map((s) => (
                   <option key={s} value={s}>{prettySection(s)}</option>
                 ))}
               </select>
+              <p className="text-xs text-gray-400 mt-1">Customer will be directed to this section after registration</p>
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Remarks</label>
@@ -348,30 +340,6 @@ export default function TicketGenerationPage() {
                 placeholder="Any notes…"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Interested In</label>
-            <div className="flex flex-wrap gap-2">
-              {SECTIONS.map((s) => {
-                const active = interested.includes(s);
-                return (
-                  <button
-                    type="button"
-                    key={s}
-                    onClick={() => toggleSection(s)}
-                    className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition ${
-                      active
-                        ? "bg-indigo-500 text-white border-indigo-500"
-                        : "bg-white text-gray-700 border-gray-200 hover:border-indigo-400"
-                    }`}
-                  >
-                    {prettySection(s)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           {error && (
             <div className="rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm p-3">{error}</div>

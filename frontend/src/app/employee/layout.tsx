@@ -18,9 +18,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
 
   useEffect(() => {
     if (loading) return;
-    if (!user) {
-      router.replace("/employee-login");
-    }
+    if (!user) router.replace("/employee-login");
   }, [user, loading, router]);
 
   if (loading || !user) {
@@ -34,8 +32,6 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
   const isReception = user.role === "receptionist" || user.assigned_section === "reception";
   const mySection = user.assigned_section || "gold";
 
-  // Receptionist: can see all tickets, but NOT sales/invoices
-  // Section Manager: can only see their section + handle sales
   const NAV = isReception
     ? [
         { href: "/employee/ticket-generation", label: "New Ticket", icon: Ticket },
@@ -51,10 +47,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
 
   return (
     <div className="min-h-screen flex bg-[#f4f6fa]">
-      {/* Sidebar */}
-      <aside
-        className={`${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-72 bg-gradient-to-b from-[#10101f] to-[#0a0f1a] flex flex-col transition-transform duration-300`}
-      >
+      <aside className={`${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-72 bg-gradient-to-b from-[#10101f] to-[#0a0f1a] flex flex-col transition-transform duration-300`}>
         <div className="flex items-center justify-between px-6 h-20 border-b border-white/5">
           <Link href={homeLink} className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -77,16 +70,8 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
             return (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  active
-                    ? "bg-gradient-to-r from-indigo-500/20 to-indigo-500/5 text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-500/5"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
+              <Link key={href} href={href} onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${active ? "bg-gradient-to-r from-indigo-500/20 to-indigo-500/5 text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-500/5" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                 <Icon className={`w-[18px] h-[18px] ${active ? "text-indigo-400" : ""}`} />
                 <span>{label}</span>
                 {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-400" />}
@@ -114,9 +99,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
         </div>
       </aside>
 
-      {mobileOpen && (
-        <div className="fixed inset-0 bg-black/60 z-30 lg:hidden backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-      )}
+      {mobileOpen && <div className="fixed inset-0 bg-black/60 z-30 lg:hidden backdrop-blur-sm" onClick={() => setMobileOpen(false)} />}
 
       <main className="flex-1 flex flex-col min-w-0">
         <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 flex items-center px-6 lg:px-10 gap-4 sticky top-0 z-20">
@@ -125,9 +108,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
           </button>
           <div className="flex-1">
             <h2 className="text-lg font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>Royal Jewellers</h2>
-            <p className="text-xs text-gray-500">
-              {isReception ? "Reception Desk — View all store tickets" : `${prettySection(mySection)} · Employee Workspace`}
-            </p>
+            <p className="text-xs text-gray-500">{isReception ? "Reception Desk — View all store tickets" : `${prettySection(mySection)} · Employee Workspace`}</p>
           </div>
           <span className="hidden md:inline text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full" suppressHydrationWarning>
             {new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", year: "numeric" })}

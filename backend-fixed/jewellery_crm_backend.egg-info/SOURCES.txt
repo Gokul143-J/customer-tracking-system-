@@ -1,9 +1,0 @@
-README.md
-pyproject.toml
-app/__init__.py
-app/main.py
-jewellery_crm_backend.egg-info/PKG-INFO
-jewellery_crm_backend.egg-info/SOURCES.txt
-jewellery_crm_backend.egg-info/dependency_links.txt
-jewellery_crm_backend.egg-info/requires.txt
-jewellery_crm_backend.egg-info/top_level.txt

@@ -5,9 +5,10 @@ import {
   ClipboardList, RefreshCw, Loader2, Ticket as TicketIcon, Clock,
   MapPin, Eye, FileText, ArrowRight,
 } from "lucide-react";
-import { ticketsApi } from "@/lib/supabase/database";
+import { ticketsApi, sectionTimeApi } from "@/lib/supabase/database";
 import { formatDateTime, formatDuration, prettySection, statusColor } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { XCircle, CheckCircle2 } from "lucide-react";
 
 const TABS = [
   { key: undefined, label: "All" },
@@ -24,6 +25,8 @@ export default function MyTicketsPage() {
   const [selected, setSelected] = useState<any>(null);
   const [movements, setMovements] = useState<any[]>([]);
   const [loadingMov, setLoadingMov] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<"success" | "error">("success");
 
   async function load() {
     setLoading(true);
@@ -41,11 +44,34 @@ export default function MyTicketsPage() {
     setSelected(t);
     setMovements([]);
     setLoadingMov(true);
+    setMessage(null);
     try {
       const m = await ticketsApi.movements(t.id);
       setMovements(m);
     } finally {
       setLoadingMov(false);
+    }
+  }
+
+  async function closeTicket(ticket: any) {
+    if (!window.confirm(`Close ticket for ${ticket.customer?.name}?\n\nThis means the customer is leaving the shop without purchasing.`)) return;
+    try {
+      const now = new Date();
+      // If ticket is in a section, log exit time
+      const timeLogs = await sectionTimeApi.byTicket(ticket.id);
+      const openLog = timeLogs.find((l: any) => !l.exit_time);
+      if (openLog) {
+        const duration = Math.floor((now.getTime() - new Date(openLog.entry_time).getTime()) / 1000);
+        await sectionTimeApi.update(openLog.id, { exit_time: now.toISOString(), duration_seconds: duration });
+      }
+      await ticketsApi.update(ticket.id, { status: "CLOSED", closed_at: now.toISOString(), updated_at: now.toISOString() });
+      setMessageType("success");
+      setMessage(`✅ Ticket closed. ${ticket.customer?.name} has left the shop.`);
+      setSelected(null);
+      load();
+    } catch (err: any) {
+      setMessageType("error");
+      setMessage("Failed to close ticket");
     }
   }
 
@@ -201,6 +227,25 @@ export default function MyTicketsPage() {
                     </li>
                   ))}
                 </ol>
+              )}
+
+              {/* Close Ticket Button - Only for receptionists on ACTIVE tickets */}
+              {selected.status === "ACTIVE" && (
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mb-3">Reception action: mark customer as leaving the shop</p>
+                  <button
+                    onClick={() => closeTicket(selected)}
+                    className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:from-red-400 hover:to-red-500 transition flex items-center justify-center gap-2"
+                  >
+                    <XCircle className="w-4 h-4" /> Close Ticket — Customer Left Shop
+                  </button>
+                </div>
+              )}
+
+              {message && (
+                <div className={`mt-4 p-3 rounded-xl text-sm font-medium flex items-center gap-2 ${messageType === "success" ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+                  {messageType === "success" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />} {message}
+                </div>
               )}
             </div>
           </div>

@@ -60,7 +60,7 @@ export default function SectionViewPage() {
     } catch (err: any) { setMessageType("error"); setMessage("Network error. Please try again."); } finally { setProcessing(false); }
   }
 
-  async function handleCheckout(action: "buying" | "leaving") {
+  async function handleCheckout(action: "buying" | "transfer") {
     if (!checkoutModal) return;
     setProcessing(true);
     try {
@@ -71,22 +71,35 @@ export default function SectionViewPage() {
       const durationSeconds = currentEntry ? Math.floor((now.getTime() - new Date(currentEntry.entry_time).getTime()) / 1000) : 0;
       if (currentEntry) await sectionTimeApi.update(currentEntry.id, { exit_time: now.toISOString(), duration_seconds: durationSeconds });
 
-      if (action === "buying") { router.push("/employee/sales-billing"); }
-      else {
-        const wantToSend = window.confirm(`Customer ${ticket.customer?.name} is leaving.\n\nOK = Send to another section\nCancel = Customer leaving store`);
-        if (wantToSend) {
-          const next = prompt("Enter next section (gold, silver, diamond, platinum):");
-          if (next && ["gold", "silver", "diamond", "platinum"].includes(next.toLowerCase())) {
-            await ticketsApi.update(ticket.id, { target_section: next.toLowerCase(), updated_at: now.toISOString() });
-            setMessageType("success"); setMessage(`Customer sent to ${prettySection(next.toLowerCase())}`);
-          }
+      if (action === "buying") {
+        // Send to billing (receptionist handles final checkout)
+        router.push("/employee/sales-billing");
+      } else {
+        // Transfer to another section only — section managers cannot close tickets
+        const next = prompt("Transfer customer to which section?\nOptions: gold, silver, diamond, platinum");
+        if (next && ["gold", "silver", "diamond", "platinum"].includes(next.toLowerCase())) {
+          await ticketsApi.update(ticket.id, {
+            target_section: next.toLowerCase(),
+            updated_at: now.toISOString(),
+          });
+          setMessageType("success");
+          setMessage(`✅ Customer transferred to ${prettySection(next.toLowerCase())}. Receptionist will handle final checkout.`);
+        } else if (next !== null) {
+          setMessageType("error");
+          setMessage("Invalid section. Must be: gold, silver, diamond, or platinum.");
         } else {
-          await ticketsApi.update(ticket.id, { status: "CLOSED", closed_at: now.toISOString(), updated_at: now.toISOString() });
-          setMessageType("success"); setMessage(`Ticket closed. ${ticket.customer?.name} has left the store.`);
+          setMessage(null); // Cancelled prompt
         }
       }
-      setCheckoutModal(null); loadCustomers();
-    } catch (err: any) { setMessageType("error"); setMessage("Checkout failed"); } finally { setProcessing(false); }
+      setCheckoutModal(null);
+      loadCustomers();
+    } catch (err: any) {
+      console.error(err);
+      setMessageType("error");
+      setMessage("Failed to process checkout");
+    } finally {
+      setProcessing(false);
+    }
   }
 
   const handleManual = (e: React.FormEvent) => { e.preventDefault(); if (manualInput.trim()) { handleScanned(manualInput.trim()); setManualInput(""); } };
@@ -174,8 +187,9 @@ export default function SectionViewPage() {
             </div>
             <div className="space-y-3">
               <button onClick={() => handleCheckout("buying")} disabled={processing} className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold hover:from-emerald-400 hover:to-emerald-500 transition flex items-center justify-center gap-2 disabled:opacity-50">💰 Customer is Buying → Go to Billing</button>
-              <button onClick={() => handleCheckout("leaving")} disabled={processing} className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-2 disabled:opacity-50"><XCircle className="w-4 h-4" /> Customer is Leaving</button>
+              <button onClick={() => handleCheckout("transfer")} disabled={processing} className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold hover:from-amber-400 hover:to-amber-500 transition flex items-center justify-center gap-2 disabled:opacity-50">🔄 Transfer to Another Section</button>
               <button onClick={() => setCheckoutModal(null)} className="w-full px-4 py-2 rounded-xl text-gray-500 text-sm hover:bg-gray-50 transition">Cancel</button>
+              <p className="text-xs text-gray-400 text-center pt-2">Only reception can close tickets (customer leaving shop)</p>
             </div>
           </div>
         </div>

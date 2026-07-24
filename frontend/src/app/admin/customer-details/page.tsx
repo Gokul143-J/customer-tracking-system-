@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Search, RefreshCw, Loader2, Phone, MapPin, Award, Eye, Clock,
-  ArrowRight, ChevronLeft, ChevronRight, User, Timer,
+  ArrowRight, ChevronLeft, ChevronRight, User, Timer, Crown,
 } from "lucide-react";
 import { customersApi, ticketsApi, sectionTimeApi } from "@/lib/supabase/database";
 import { formatDateTime, prettySection, formatDuration } from "@/lib/utils";
@@ -91,19 +91,25 @@ export default function CustomerDetailsPage() {
             <div className="text-gray-500 text-sm mt-1">Customers will appear here once tickets are generated</div>
           </div>
         ) : (
-          customers.map((c) => (
-            <div key={c.id} className="group rounded-2xl bg-white border border-gray-100 p-5 shadow-sm hover:shadow-md hover:border-amber-200 transition-all cursor-pointer" onClick={() => openCustomer(c)}>
+          customers.map((c) => {
+            const isVIP = c.visit_count > 2;
+            return (
+            <div key={c.id} className={`group rounded-2xl bg-white border p-5 shadow-sm hover:shadow-md transition-all cursor-pointer ${isVIP ? "border-amber-300 hover:border-amber-400" : "border-gray-100 hover:border-amber-200"}`} onClick={() => openCustomer(c)}>
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-amber-500/20">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-lg relative ${isVIP ? "bg-gradient-to-br from-amber-400 to-amber-600 shadow-amber-500/30" : "bg-gradient-to-br from-gray-400 to-gray-600 shadow-gray-500/20"}`}>
                   {c.name?.charAt(0).toUpperCase()}
+                  {isVIP && <Crown className="absolute -top-1 -right-1 w-4 h-4 text-amber-500 bg-white rounded-full p-0.5" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-gray-900 truncate">{c.name}</div>
+                  <div className="font-bold text-gray-900 truncate flex items-center gap-1">
+                    {c.name}
+                    {isVIP && <Award className="w-3 h-3 text-amber-500" />}
+                  </div>
                   <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
                     <Phone className="w-3 h-3" /> {c.phone}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">
+                <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${isVIP ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"}`}>
                   <Award className="w-3 h-3" /> {c.visit_count || 0} visits
                 </div>
               </div>
@@ -130,7 +136,8 @@ export default function CustomerDetailsPage() {
                 <span className="text-xs text-amber-600 font-medium group-hover:translate-x-0.5 transition-transform">View Details →</span>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 

@@ -9,51 +9,12 @@
   --fg: #0f172a;
 }
 
-html,
-body {
+html, body {
   background: var(--bg);
   color: var(--fg);
   font-family: Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-
-@layer components {
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-  .btn-primary {
-    @apply btn bg-gold-500 text-white hover:bg-gold-600 shadow-card;
-  }
-  .btn-outline {
-    @apply btn border border-ink-200 bg-white text-ink-900 hover:bg-ink-50;
-  }
-  .btn-ghost {
-    @apply btn text-ink-700 hover:bg-ink-100;
-  }
-  .card {
-    @apply bg-white rounded-2xl shadow-soft border border-ink-200/60;
-  }
-  .input {
-    @apply w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-200 transition;
-  }
-  .label {
-    @apply block text-xs font-semibold uppercase tracking-wide text-ink-500 mb-1;
-  }
-  .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
-  }
-  .sidebar-link {
-    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-500 hover:bg-gold-50 hover:text-gold-700 transition;
-  }
-  .sidebar-link.active {
-    @apply bg-gold-500 text-white hover:bg-gold-600 hover:text-white shadow-card;
-  }
-}
-
-/* Scrollbar styling */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-thumb { background: #d6cfbf; border-radius: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
 
 /* Animations */
 @keyframes float {
@@ -61,21 +22,71 @@ body {
   50% { transform: translateY(-20px); opacity: 0.6; }
 }
 
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out;
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
-/* Selection color */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #d6cfbf; border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+
 ::selection {
   background: rgba(212, 175, 55, 0.2);
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.2s ease;
+}
+.card-hover:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }

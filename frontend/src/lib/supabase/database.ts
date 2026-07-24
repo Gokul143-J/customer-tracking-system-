@@ -1,5 +1,6 @@
 import { supabase } from './client';
 
+// ─── AUTH ───────────────────────────────────────────
 export const authApi = {
   login: async (username: string, password: string) => {
     const { data, error } = await supabase
@@ -25,6 +26,7 @@ export const authApi = {
   },
 };
 
+// ─── CUSTOMERS ──────────────────────────────────────
 export const customersApi = {
   list: async (search?: string) => {
     let q = supabase.from('customers').select('*').order('last_visit', { ascending: false });
@@ -55,6 +57,7 @@ export const customersApi = {
   },
 };
 
+// ─── TICKETS ────────────────────────────────────────
 export const ticketsApi = {
   list: async (status?: string) => {
     let q = supabase.from('tickets').select('*, customer:customers(*)').order('created_at', { ascending: false });
@@ -90,11 +93,13 @@ export const ticketsApi = {
   },
 };
 
+// ─── MOVEMENTS ──────────────────────────────────────
+// Note: create() only inserts a movement record. It does NOT update the ticket.
+// The caller (section-view) is responsible for updating ticket.current_section.
 export const movementsApi = {
   create: async (p: any) => {
     const { data, error } = await supabase.from('movements').insert(p).select().single();
     if (error) throw error;
-    await supabase.from('tickets').update({ current_section: p.to_section, updated_at: new Date().toISOString() }).eq('id', p.ticket_id);
     return data;
   },
   list: async () => {
@@ -104,6 +109,7 @@ export const movementsApi = {
   },
 };
 
+// ─── SECTION TIME LOGS ──────────────────────────────
 export const sectionTimeApi = {
   create: async (p: any) => {
     const { data, error } = await supabase.from('section_time_logs').insert(p).select().single();
@@ -127,6 +133,7 @@ export const sectionTimeApi = {
   },
 };
 
+// ─── SALES ──────────────────────────────────────────
 export const salesApi = {
   list: async () => {
     const { data, error } = await supabase.from('sales').select('*, tickets(*), customers(*)').order('created_at', { ascending: false });
@@ -140,6 +147,7 @@ export const salesApi = {
   },
 };
 
+// ─── INVOICES ───────────────────────────────────────
 export const invoicesApi = {
   list: async () => {
     const { data, error } = await supabase.from('invoices').select('*').order('created_at', { ascending: false });
@@ -153,6 +161,7 @@ export const invoicesApi = {
   },
 };
 
+// ─── SECTIONS ───────────────────────────────────────
 export const sectionsApi = {
   list: async () => {
     const { data, error } = await supabase.from('sections').select('*').eq('is_active', true).order('display_order');
@@ -161,6 +170,7 @@ export const sectionsApi = {
   },
 };
 
+// ─── STAFF ──────────────────────────────────────────
 export const staffApi = {
   list: async () => {
     const { data, error } = await supabase.from('staff').select('*').order('created_at', { ascending: false });
@@ -179,6 +189,7 @@ export const staffApi = {
   },
 };
 
+// ─── AUDIT LOGS ─────────────────────────────────────
 export const auditLogsApi = {
   list: async () => {
     const { data, error } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100);
@@ -192,6 +203,7 @@ export const auditLogsApi = {
   },
 };
 
+// ─── DASHBOARD STATS ────────────────────────────────
 export const dashboardApi = {
   getStats: async () => {
     const today = new Date().toISOString().split('T')[0];
@@ -203,9 +215,9 @@ export const dashboardApi = {
       supabase.from('tickets').select('current_section').eq('status', 'ACTIVE'),
       supabase.from('tickets').select('*, customer:customers(name)').order('created_at', { ascending: false }).limit(10),
     ]);
-    const revenue = (salesRes.data || []).reduce((s, x) => s + Number(x.final_amount || 0), 0);
+    const revenue = (salesRes.data || []).reduce((s: number, x: any) => s + Number(x.final_amount || 0), 0);
     const occMap: Record<string, number> = {};
-    (occRes.data || []).forEach((t) => { const s = t.current_section || 'unknown'; occMap[s] = (occMap[s] || 0) + 1; });
+    (occRes.data || []).forEach((t: any) => { const s = t.current_section || 'unknown'; occMap[s] = (occMap[s] || 0) + 1; });
     return {
       totalCustomers: totalC.count || 0,
       activeTickets: activeT.count || 0,

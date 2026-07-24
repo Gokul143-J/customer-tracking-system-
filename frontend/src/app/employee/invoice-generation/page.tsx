@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  FileText, Search, Loader2, RefreshCw, CheckCircle2, Printer,
+  FileText, Search, Loader2, RefreshCw, CheckCircle2, Printer, XCircle,
 } from "lucide-react";
 import { invoicesApi, salesApi } from "@/lib/supabase/database";
 import { formatDateTime } from "@/lib/utils";
@@ -20,7 +20,7 @@ export default function InvoiceGenerationPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // Guard: redirect receptionists away
+  // Bug #9 fix: Early return for receptionist
   useEffect(() => {
     if (user && user.role === "receptionist") {
       router.replace("/employee/ticket-generation");
@@ -61,11 +61,12 @@ export default function InvoiceGenerationPage() {
         </button>
       </div>
 
+      {error && <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm flex items-center gap-2"><XCircle className="w-4 h-4" /> {error}</div>}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 rounded-2xl bg-white border border-gray-100 p-6 shadow-sm">
           <h3 className="text-lg font-bold text-gray-900 mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>Generate New Invoice</h3>
           <p className="text-sm text-gray-500 mb-4">Sales without invoices — click to generate</p>
-          {error && <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">{error}</div>}
           {loading ? <div className="text-center py-10 text-gray-400"><Loader2 className="w-5 h-5 animate-spin inline mr-2" /> Loading…</div>
             : salesWithoutInvoice.length === 0
               ? <div className="text-center py-10 text-gray-400"><CheckCircle2 className="w-12 h-12 mx-auto text-gray-300 mb-3" /><div className="font-semibold text-gray-600">All sales have invoices</div></div>
@@ -107,7 +108,7 @@ export default function InvoiceGenerationPage() {
 
       {selectedInvoice && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedInvoice(null)}>
-          <div className="rounded-2xl bg-white max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-2xl bg-white max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-2xl animate-scale-in" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-white">
               <div className="flex items-start justify-between">
                 <div>

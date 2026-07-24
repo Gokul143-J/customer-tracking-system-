@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import {
   Users, Activity, IndianRupee, TrendingUp, TrendingDown, RefreshCw,
   ArrowUpRight, ArrowDownRight,
-  BarChart3, Zap, Target, Gem, UserCheck,
+  BarChart3, Zap, Target, Gem, UserCheck, Clock, MapPin, LogIn, LogOut,
 } from "lucide-react";
-import { dashboardApi } from "@/lib/supabase/database";
-import { formatTime, prettySection } from "@/lib/utils";
+import { dashboardApi, movementsApi } from "@/lib/supabase/database";
+import { formatTime, formatDateTime, prettySection } from "@/lib/utils";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, CartesianGrid,
@@ -18,83 +18,39 @@ const CHART_COLORS = ["#D4AF37", "#6366f1", "#10b981", "#f43f5e", "#8b5cf6", "#0
 export default function AdminDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [movements, setMovements] = useState<any[]>([]);
 
   async function load() {
     setLoading(true);
     try {
-      const s = await dashboardApi.getStats();
+      const [s, m] = await Promise.all([
+        dashboardApi.getStats(),
+        movementsApi.list().catch(() => []),
+      ]);
       setStats(s);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+      setMovements(m || []);
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   }
 
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 20000);
-    return () => clearInterval(t);
-  }, []);
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, []);
 
-  const chartData = stats?.occupancy?.map((o: any) => ({
-    name: prettySection(o.section),
-    customers: o.count,
-  })) || [];
-
-  // Simulated weekly data for the area chart
+  const chartData = stats?.occupancy?.map((o: any) => ({ name: prettySection(o.section), customers: o.count })) || [];
   const weeklyData = [
-    { day: "Mon", visitors: 45, sales: 12 },
-    { day: "Tue", visitors: 52, sales: 18 },
-    { day: "Wed", visitors: 38, sales: 9 },
-    { day: "Thu", visitors: 61, sales: 22 },
-    { day: "Fri", visitors: 75, sales: 31 },
-    { day: "Sat", visitors: 92, sales: 45 },
+    { day: "Mon", visitors: 45, sales: 12 }, { day: "Tue", visitors: 52, sales: 18 },
+    { day: "Wed", visitors: 38, sales: 9 }, { day: "Thu", visitors: 61, sales: 22 },
+    { day: "Fri", visitors: 75, sales: 31 }, { day: "Sat", visitors: 92, sales: 45 },
     { day: "Sun", visitors: 68, sales: 28 },
   ];
 
   const metrics = [
-    {
-      label: "Total Customers",
-      value: stats?.totalCustomers || 0,
-      trend: "+12%",
-      positive: true,
-      icon: <Users className="w-5 h-5" />,
-      gradient: "from-amber-400 to-amber-600",
-      bg: "bg-amber-50",
-    },
-    {
-      label: "Active Tickets",
-      value: stats?.activeTickets || 0,
-      trend: "Live",
-      positive: true,
-      icon: <Activity className="w-5 h-5" />,
-      gradient: "from-emerald-400 to-emerald-600",
-      bg: "bg-emerald-50",
-    },
-    {
-      label: "Today's Visitors",
-      value: stats?.todayTickets || 0,
-      trend: "+8%",
-      positive: true,
-      icon: <UserCheck className="w-5 h-5" />,
-      gradient: "from-indigo-400 to-indigo-600",
-      bg: "bg-indigo-50",
-    },
-    {
-      label: "Revenue Today",
-      value: `₹${(stats?.revenueToday || 0).toLocaleString("en-IN")}`,
-      trend: "+15%",
-      positive: true,
-      icon: <IndianRupee className="w-5 h-5" />,
-      gradient: "from-rose-400 to-rose-600",
-      bg: "bg-rose-50",
-    },
+    { label: "Total Customers", value: stats?.totalCustomers || 0, trend: "+12%", positive: true, icon: <Users className="w-5 h-5" />, gradient: "from-amber-400 to-amber-600" },
+    { label: "Active Tickets", value: stats?.activeTickets || 0, trend: "Live", positive: true, icon: <Activity className="w-5 h-5" />, gradient: "from-emerald-400 to-emerald-600" },
+    { label: "Today's Visitors", value: stats?.todayTickets || 0, trend: "+8%", positive: true, icon: <UserCheck className="w-5 h-5" />, gradient: "from-indigo-400 to-indigo-600" },
+    { label: "Revenue Today", value: `₹${(stats?.revenueToday || 0).toLocaleString("en-IN")}`, trend: "+15%", positive: true, icon: <IndianRupee className="w-5 h-5" />, gradient: "from-rose-400 to-rose-600" },
   ];
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>
@@ -107,11 +63,9 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {metrics.map((m, i) => (
           <div key={m.label} className="group relative overflow-hidden rounded-2xl bg-white border border-gray-100 p-6 hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-0.5">
-            <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-gradient-to-br opacity-[0.03] group-hover:opacity-[0.06] transition-opacity -translate-x-8 -translate-y-8" style={{ background: `var(--tw-gradient-stops)` }} />
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">{m.label}</div>
@@ -129,9 +83,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Weekly Traffic */}
         <div className="lg:col-span-2 rounded-2xl bg-white border border-gray-100 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -139,12 +91,8 @@ export default function AdminDashboard() {
               <p className="text-xs text-gray-500 mt-0.5">Visitors & sales performance</p>
             </div>
             <div className="flex items-center gap-4 text-xs">
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-amber-400" /> Visitors
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-indigo-400" /> Sales
-              </div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-amber-400" /> Visitors</div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-indigo-400" /> Sales</div>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={280}>
@@ -162,28 +110,23 @@ export default function AdminDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
               <YAxis stroke="#94a3b8" fontSize={12} />
-              <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} />
+              <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0' }} />
               <Area type="monotone" dataKey="visitors" stroke="#D4AF37" strokeWidth={2.5} fill="url(#colorVisitors)" />
               <Area type="monotone" dataKey="sales" stroke="#6366f1" strokeWidth={2.5} fill="url(#colorSales)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Section Occupancy Pie */}
         <div className="rounded-2xl bg-white border border-gray-100 p-6 shadow-sm">
           <h3 className="text-lg font-bold text-gray-900 mb-1" style={{ fontFamily: "'Playfair Display', serif" }}>Section Occupancy</h3>
           <p className="text-xs text-gray-500 mb-4">Live customer distribution</p>
           {chartData.length === 0 ? (
-            <div className="flex items-center justify-center h-[260px] text-gray-400 text-sm">
-              No active customers right now
-            </div>
+            <div className="flex items-center justify-center h-[260px] text-gray-400 text-sm">No active customers right now</div>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
                 <Pie data={chartData} dataKey="customers" nameKey="name" cx="50%" cy="50%" outerRadius={85} innerRadius={50} paddingAngle={3} label={(e: any) => `${e.name} (${e.customers})`} labelLine={false}>
-                  {chartData.map((_: any, i: number) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
+                  {chartData.map((_: any, i: number) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                 </Pie>
                 <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0' }} />
               </PieChart>
@@ -192,42 +135,43 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity Feed */}
+        {/* Live Activity Feed */}
         <div className="rounded-2xl bg-white border border-gray-100 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-lg font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>Recent Activities</h3>
-            <span className="text-xs text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full">{stats?.recentActivity?.length || 0} entries</span>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>Live Activity Feed</h3>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+              </div>
+            </div>
+            <span className="text-xs text-gray-400">{movements.length} movements</span>
           </div>
-          {!stats?.recentActivity?.length ? (
-            <div className="text-center py-10 text-gray-400 text-sm">No recent activities</div>
+          {movements.length === 0 ? (
+            <div className="text-center py-10 text-gray-400 text-sm">No movements yet today</div>
           ) : (
-            <ul className="space-y-3">
-              {stats.recentActivity.slice(0, 8).map((a: any, i: number) => (
-                <li key={a.id || i} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    a.status === "ACTIVE" ? "bg-emerald-100 text-emerald-600" : "bg-gray-100 text-gray-500"
-                  }`}>
-                    <Zap className="w-4 h-4" />
+            <ul className="space-y-2 max-h-[400px] overflow-y-auto">
+              {movements.slice(0, 10).map((m: any, i: number) => (
+                <li key={m.id || i} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors animate-fade-in">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                    <MapPin className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-gray-900 truncate">
-                      {a.customer?.name || "Customer"}
+                      {m.customers?.name || m.tickets?.customer?.name || "Customer"}
                     </div>
                     <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
-                      <span className="font-mono text-amber-600">{a.ticket_number}</span>
-                      <span>•</span>
-                      <span className="capitalize">{prettySection(a.current_section)}</span>
+                      <span className="font-mono text-amber-600">{m.tickets?.ticket_number}</span>
+                      <span className="text-gray-300">|</span>
+                      <span className="text-gray-600">{prettySection(m.from_section)} → <span className="font-medium text-indigo-600">{prettySection(m.to_section)}</span></span>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {m.time_spent_seconds > 0 && <span className="mr-2">Stayed {formatTime(m.time_spent_seconds)}</span>}
+                      {m.reason && <span className="italic">"{m.reason}"</span>}
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      a.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
-                    }`}>
-                      {a.status}
-                    </span>
-                    <div className="text-xs text-gray-400 mt-1">{formatTime(a.created_at)}</div>
+                    <div className="text-xs text-gray-400">{formatDateTime(m.created_at)}</div>
                   </div>
                 </li>
               ))}
@@ -235,7 +179,6 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* Top Sections */}
         <div className="rounded-2xl bg-white border border-gray-100 p-6 shadow-sm">
           <h3 className="text-lg font-bold text-gray-900 mb-4" style={{ fontFamily: "'Playfair Display', serif" }}>Top Sections</h3>
           {!chartData.length ? (
@@ -252,13 +195,7 @@ export default function AdminDashboard() {
                       <span className="text-gray-500 font-semibold">{item.customers}</span>
                     </div>
                     <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{
-                          width: `${pct}%`,
-                          background: CHART_COLORS[i % CHART_COLORS.length],
-                        }}
-                      />
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: CHART_COLORS[i % CHART_COLORS.length] }} />
                     </div>
                   </div>
                 );

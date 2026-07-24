@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ShoppingBag, Search, Loader2, IndianRupee, CheckCircle2,
   FileText, RefreshCw,
@@ -13,6 +14,7 @@ const PAYMENT_METHODS = ["cash", "upi", "card", "emi"];
 
 export default function SalesBillingPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -25,6 +27,13 @@ export default function SalesBillingPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<string | null>(null);
+
+  // Guard: redirect receptionists away
+  useEffect(() => {
+    if (user && user.role === "receptionist") {
+      router.replace("/employee/ticket-generation");
+    }
+  }, [user, router]);
 
   async function loadSales() {
     setLoading(true);

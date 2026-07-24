@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Gem, Ticket, FileText, ShoppingBag, ClipboardList, MapPin,
-  LogOut, Menu, X, User, Users,
+  LogOut, Menu, X, Users,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { prettySection } from "@/lib/utils";
@@ -34,12 +34,11 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
   const isReception = user.role === "receptionist" || user.assigned_section === "reception";
   const mySection = user.assigned_section || "gold";
 
-  // Role-based navigation
+  // Receptionist: can see all tickets, but NOT sales/invoices
+  // Section Manager: can only see their section + handle sales
   const NAV = isReception
     ? [
         { href: "/employee/ticket-generation", label: "New Ticket", icon: Ticket },
-        { href: "/employee/sales-billing", label: "Sales & Billing", icon: ShoppingBag },
-        { href: "/employee/invoice-generation", label: "Invoices", icon: FileText },
         { href: "/employee/my-tickets", label: "All Tickets", icon: ClipboardList },
       ]
     : [
@@ -48,6 +47,8 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
         { href: "/employee/invoice-generation", label: "Invoices", icon: FileText },
       ];
 
+  const homeLink = isReception ? "/employee/ticket-generation" : "/employee/section-view";
+
   return (
     <div className="min-h-screen flex bg-[#f4f6fa]">
       {/* Sidebar */}
@@ -55,14 +56,14 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
         className={`${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-72 bg-gradient-to-b from-[#10101f] to-[#0a0f1a] flex flex-col transition-transform duration-300`}
       >
         <div className="flex items-center justify-between px-6 h-20 border-b border-white/5">
-          <Link href={isReception ? "/employee/ticket-generation" : "/employee/section-view"} className="flex items-center gap-3">
+          <Link href={homeLink} className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <Gem className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="text-white font-bold text-lg leading-none" style={{ fontFamily: "'Playfair Display', serif" }}>Royal</div>
               <div className="text-[10px] uppercase tracking-[0.2em] text-indigo-400/70 mt-0.5">
-                {isReception ? "Reception" : prettySection(mySection)}
+                {isReception ? "Reception Desk" : prettySection(mySection)}
               </div>
             </div>
           </Link>
@@ -125,7 +126,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
           <div className="flex-1">
             <h2 className="text-lg font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>Royal Jewellers</h2>
             <p className="text-xs text-gray-500">
-              {isReception ? "Reception Desk" : `${prettySection(mySection)} · Employee Workspace`}
+              {isReception ? "Reception Desk — View all store tickets" : `${prettySection(mySection)} · Employee Workspace`}
             </p>
           </div>
           <span className="hidden md:inline text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full" suppressHydrationWarning>

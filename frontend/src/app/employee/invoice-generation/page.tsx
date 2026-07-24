@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   FileText, Search, Loader2, RefreshCw, Download, Eye,
   IndianRupee, CheckCircle2, Printer,
 } from "lucide-react";
 import { invoicesApi, salesApi, ticketsApi } from "@/lib/supabase/database";
 import { formatDateTime } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export default function InvoiceGenerationPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,6 +20,13 @@ export default function InvoiceGenerationPage() {
   const [generating, setGenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Guard: redirect receptionists away
+  useEffect(() => {
+    if (user && user.role === "receptionist") {
+      router.replace("/employee/ticket-generation");
+    }
+  }, [user, router]);
 
   async function load() {
     setLoading(true);

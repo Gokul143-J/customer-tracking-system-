@@ -6,7 +6,7 @@ import {
   MapPin, Eye, FileText, ArrowRight, XCircle, CheckCircle2,
   Crown, Award,
 } from "lucide-react";
-import { ticketsApi, sectionTimeApi } from "@/lib/supabase/database";
+import { ticketsApi, sectionTimeApi, auditLogsApi, salesApi } from "@/lib/supabase/database";
 import { formatDateTime, formatDuration, prettySection, statusColor } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
@@ -27,6 +27,15 @@ export default function MyTicketsPage() {
   const [loadingMov, setLoadingMov] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error">("success");
+  const [closingTicket, setClosingTicket] = useState<any>(null);
+  const [closeReason, setCloseReason] = useState<string>("");
+
+  const REASONS = [
+    { id: "browse", label: "Browse only", icon: "👀" },
+    { id: "found_elsewhere", label: "Found elsewhere", icon: "🔍" },
+    { id: "changed_mind", label: "Changed mind", icon: "🤔" },
+    { id: "other", label: "Other", icon: "📝" },
+  ];
 
   async function load() {
     setLoading(true);
@@ -57,11 +66,8 @@ export default function MyTicketsPage() {
     }
   }
 
-  async function closeTicket(ticket: any) {
-    // Feature #1: Reason selector
-    const reason = prompt(`Closing ticket for ${ticket.customer?.name}.\n\nReason for leaving?\n1 = Browse only\n2 = Found elsewhere\n3 = Changed mind\n4 = Other`);
-    if (reason === null) return;
-    const reasonText = reason === "1" ? "Browse only" : reason === "2" ? "Found elsewhere" : reason === "3" ? "Changed mind" : reason === "4" ? "Other" : reason;
+  async function closeTicket(ticket: any, reason: string) {
+    const reasonText = REASONS.find(r => r.id === reason)?.label || reason;
     try {
       const now = new Date();
       const timeLogs = await sectionTimeApi.byTicket(ticket.id);
@@ -70,15 +76,40 @@ export default function MyTicketsPage() {
         const duration = Math.floor((now.getTime() - new Date(openLog.entry_time).getTime()) / 1000);
         await sectionTimeApi.update(openLog.id, { exit_time: now.toISOString(), duration_seconds: duration });
       }
+
+      // Check if there's a sale for this ticket
+      const allSales = await salesApi.list();
+      const hasSale = allSales.some((s: any) => s.ticket_id === ticket.id);
+      const finalStatus = hasSale ? "COMPLETED" : "CLOSED";
+
       await ticketsApi.update(ticket.id, {
-        status: "CLOSED",
+        status: finalStatus,
         closed_at: now.toISOString(),
         updated_at: now.toISOString(),
-        ...(reasonText ? { notes: `Left shop: ${reasonText}` } : {}),
+        ...(reasonText ? { notes: `${hasSale ? "Sale completed" : "Left shop"}: ${reasonText}` } : {}),
       });
+
+      // Write audit log
+      try {
+        await auditLogsApi.create({
+          action: "TICKET_CLOSED",
+          entity_type: "ticket",
+          entity_id: ticket.id,
+          new_values: {
+            ticket_number: ticket.ticket_number,
+            customer: ticket.customer?.name,
+            reason: reasonText,
+            closed_by: user?.full_name,
+          },
+          performed_by: user?.id,
+        });
+      } catch (e) { console.warn("Audit log failed:", e); }
+
       setMessageType("success");
       setMessage(`✅ Ticket closed. ${ticket.customer?.name} has left the shop.`);
       setSelected(null);
+      setClosingTicket(null);
+      setCloseReason("");
       load();
     } catch (err: any) {
       setMessageType("error");
@@ -216,10 +247,10 @@ export default function MyTicketsPage() {
             </div>
 
             <div className="p-6">
-              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="grid grid-cols-2 gap-3 mb-6">
                 <div className="p-3 rounded-xl bg-gray-50">
-                  <div className="text-xs text-gray-500">Current Section</div>
-                  <div className="font-semibold text-gray-900 capitalize mt-0.5">{prettySection(selected.current_section)}</div>
+                  <div className="text-xs text-gray-500">Current Location</div>
+                  <div className="font-semibold text-gray-900 capitalize mt-0.5">{selected.current_section ? prettySection(selected.current_section) : "Idle"}</div>
                 </div>
                 <div className="p-3 rounded-xl bg-gray-50">
                   <div className="text-xs text-gray-500">Created</div>
@@ -265,7 +296,7 @@ export default function MyTicketsPage() {
               {selected.status === "ACTIVE" && (
                 <div className="mt-6 pt-4 border-t border-gray-100">
                   <p className="text-xs text-gray-500 mb-3">Reception action: mark customer as leaving the shop</p>
-                  <button onClick={() => closeTicket(selected)} className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:from-red-400 hover:to-red-500 transition flex items-center justify-center gap-2">
+                  <button onClick={() => { setClosingTicket(selected); setCloseReason(""); }} className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:from-red-400 hover:to-red-500 transition flex items-center justify-center gap-2">
                     <XCircle className="w-4 h-4" /> Close Ticket — Customer Left Shop
                   </button>
                 </div>
@@ -276,6 +307,57 @@ export default function MyTicketsPage() {
                   {messageType === "success" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />} {message}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close Ticket Reason Modal */}
+      {closingTicket && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setClosingTicket(null)}>
+          <div className="rounded-2xl bg-white max-w-md w-full p-6 shadow-2xl animate-scale-in" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center mb-5">
+              <div className="w-14 h-14 mx-auto rounded-full bg-gradient-to-br from-red-400 to-red-600 text-white flex items-center justify-center font-bold text-xl mb-3">
+                <XCircle className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">Closing Ticket</h3>
+              <p className="text-sm text-gray-500 mt-1">{closingTicket.customer?.name} · {closingTicket.ticket_number}</p>
+            </div>
+
+            <div className="mb-5">
+              <p className="text-sm font-medium text-gray-700 mb-3">Reason for leaving?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {REASONS.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => setCloseReason(r.id)}
+                    className={`flex items-center gap-2 px-3 py-3 rounded-xl border-2 text-sm font-medium transition ${
+                      closeReason === r.id
+                        ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                        : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <span className="text-lg">{r.icon}</span>
+                    <span>{r.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setClosingTicket(null)}
+                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => closeReason && closeTicket(closingTicket, closeReason)}
+                disabled={!closeReason}
+                className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-semibold hover:from-red-400 hover:to-red-500 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <XCircle className="w-4 h-4" /> Close Ticket
+              </button>
             </div>
           </div>
         </div>

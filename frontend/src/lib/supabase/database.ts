@@ -207,10 +207,11 @@ export const auditLogsApi = {
 export const dashboardApi = {
   getStats: async () => {
     const today = new Date().toISOString().split('T')[0];
-    const [totalC, activeT, todayT, salesRes, occRes, recentRes] = await Promise.all([
+    const [totalC, activeT, todayT, completedToday, salesRes, occRes, recentRes] = await Promise.all([
       supabase.from('customers').select('*', { count: 'exact', head: true }),
       supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'ACTIVE'),
       supabase.from('tickets').select('*', { count: 'exact', head: true }).gte('created_at', today),
+      supabase.from('tickets').select('*', { count: 'exact', head: true }).gte('closed_at', today).in('status', ['COMPLETED', 'CLOSED']),
       supabase.from('sales').select('final_amount').gte('created_at', today),
       supabase.from('tickets').select('current_section').eq('status', 'ACTIVE'),
       supabase.from('tickets').select('*, customer:customers(name)').order('created_at', { ascending: false }).limit(10),
@@ -222,6 +223,7 @@ export const dashboardApi = {
       totalCustomers: totalC.count || 0,
       activeTickets: activeT.count || 0,
       todayTickets: todayT.count || 0,
+      completedToday: completedToday.count || 0,
       revenueToday: revenue,
       occupancy: Object.entries(occMap).map(([section, count]) => ({ section, count })),
       recentActivity: recentRes.data || [],

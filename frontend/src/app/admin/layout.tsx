@@ -5,9 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Gem, LayoutDashboard, Users, MapPin, BarChart3, Activity,
-  Settings, LogOut, Menu, X, Shield, Bell, UserCog,
+  Settings, LogOut, Menu, X, Shield, Bell, UserCog, Ticket,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { ticketsApi } from "@/lib/supabase/database";
+import { formatDateTime, prettySection } from "@/lib/utils";
 
 const NAV = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -24,14 +26,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const { user, logout, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  // Fetch recent activities for notification dropdown
+  useEffect(() => {
+    let cancelled = false;
+    async function loadNotifications() {
+      try {
+        const recent = await ticketsApi.list();
+        if (!cancelled) setNotifications(recent.slice(0, 5));
+      } catch (e) { /* ignore */ }
+    }
+    if (user) loadNotifications();
+    return () => { cancelled = true; };
+  }, [user]);
 
   useEffect(() => {
     if (loading) return;
-    if (!user) {
-      router.replace("/admin-login");
-    } else if (user.role !== "admin") {
-      router.replace("/admin-login");
-    }
+    if (!user) router.replace("/admin-login");
+    else if (user.role !== "admin") router.replace("/admin-login");
   }, [user, loading, router]);
 
   if (loading || !user) {
@@ -42,7 +56,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // Block non-admin users
   if (user.role !== "admin") {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
@@ -124,19 +137,78 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Menu className="w-5 h-5 text-gray-600" />
           </button>
           <div className="flex-1">
-            <h2 className="text-lg font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>
-              Royal Jewellers
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>Royal Jewellers</h2>
             <p className="text-xs text-gray-500">Admin Control Center</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden md:inline text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full" suppressHydrationWarning>
               {new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </span>
-            <button className="relative p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setNotifOpen(!notifOpen)}
+                className="relative p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition"
+                title="Recent Activities"
+              >
+                <Bell className="w-5 h-5" />
+                {notifications.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
+                )}
+              </button>
+              {notifOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setNotifOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-40 overflow-hidden animate-fade-in">
+                    <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-900">Recent Activities</h3>
+                      <button onClick={() => setNotifOpen(false)} className="text-gray-400 hover:text-gray-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="max-h-[400px] overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-6 text-center text-gray-400 text-sm">No recent activities</div>
+                      ) : (
+                        notifications.map((n: any) => (
+                          <div key={n.id} className="p-3 border-b border-gray-50 hover:bg-gray-50 transition">
+                            <div className="flex items-start gap-3">
+                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                                <Ticket className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-semibold text-gray-900 truncate">
+                                  {n.customer?.name || "Customer"}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  <span className="font-mono text-amber-600">{n.ticket_number}</span>
+                                  {" · "}
+                                  <span className="capitalize">{prettySection(n.current_section)}</span>
+                                </div>
+                                <div className="text-xs text-gray-400 mt-0.5">{formatDateTime(n.created_at)}</div>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
+                                n.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
+                              }`}>
+                                {n.status}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="p-3 border-t border-gray-100 text-center">
+                      <Link
+                        href="/admin/track-customers"
+                        onClick={() => setNotifOpen(false)}
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                      >
+                        View all tickets →
+                      </Link>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 

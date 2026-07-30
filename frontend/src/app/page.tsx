@@ -36,7 +36,7 @@ export default function LandingPage() {
         </p>
         <div className="flex items-center justify-center gap-2 mb-12">
           <Sparkles className="w-4 h-4 text-amber-400" />
-          <span className="text-sm text-amber-400/80 uppercase tracking-widest font-medium">Premium CRM Platform</span>
+          <span className="text-sm text-amber-400/80 uppercase tracking-widest font-medium">CTS Platform</span>
           <Sparkles className="w-4 h-4 text-amber-400" />
         </div>
 

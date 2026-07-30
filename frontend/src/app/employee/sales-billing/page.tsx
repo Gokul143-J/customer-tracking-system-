@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ShoppingBag, Search, Loader2, IndianRupee, CheckCircle2, FileText, RefreshCw, XCircle, AlertTriangle,
 } from "lucide-react";
-import { salesApi, ticketsApi, sectionTimeApi } from "@/lib/supabase/database";
+import { salesApi, ticketsApi, sectionTimeApi, auditLogsApi, movementsApi } from "@/lib/supabase/database";
 import { formatDateTime } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
@@ -26,6 +26,8 @@ export default function SalesBillingPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<"success" | "error">("success");
 
   // Guard: redirect receptionists away
   useEffect(() => {
@@ -38,7 +40,14 @@ export default function SalesBillingPage() {
     setLoading(true);
     try {
       const s = await salesApi.list();
-      setSales(s);
+      // Filter by section for section managers (use salesperson_id since ticket
+      // gets moved to reception after billing, making current_section unreliable)
+      if (user?.role === "section_manager") {
+        const filtered = s.filter((sale: any) => sale.salesperson_id === user.id);
+        setSales(filtered);
+      } else {
+        setSales(s);
+      }
     } finally { setLoading(false); }
   }
 
@@ -46,7 +55,7 @@ export default function SalesBillingPage() {
 
   async function searchTicket() {
     if (!query.trim()) return;
-    setError(null); setLooking(true); setTicket(null);
+    setError(null); setMessage(null); setLooking(true); setTicket(null);
     try {
       const all = await ticketsApi.list("ACTIVE");
       const t = all.find((tk: any) =>
@@ -54,10 +63,10 @@ export default function SalesBillingPage() {
       );
       if (!t) { setError("Active ticket not found"); setLooking(false); return; }
       if (t.status !== "ACTIVE") { setError(`Ticket is ${t.status}; cannot bill.`); setLooking(false); return; }
-      // Validate ticket belongs to section manager's section
+      // Validate ticket is currently in section manager's section
       if (user?.role === "section_manager" && user.assigned_section) {
-        if (t.target_section !== user.assigned_section) {
-          setError(`This ticket is assigned to ${t.target_section}, not your section (${user.assigned_section})`);
+        if (t.current_section !== user.assigned_section) {
+          setError(`Customer is currently in ${t.current_section || "idle"}, not your section (${user.assigned_section})`);
           setLooking(false);
           return;
         }
@@ -113,14 +122,44 @@ export default function SalesBillingPage() {
         }
       } catch (e) { console.warn("Failed to close time log:", e); }
 
-      // 3. Mark ticket as COMPLETED
+      // 3. After billing, send customer back to reception (ticket stays ACTIVE)
+      //    Only receptionist can do final checkout/close
+      await movementsApi.create({
+        ticket_id: ticket.id,
+        customer_id: ticket.customer_id,
+        from_section: ticket.current_section,
+        to_section: "reception",
+        reason: `Sale completed by ${user?.full_name || "employee"}`,
+        time_spent_seconds: 0,
+      });
+
       await ticketsApi.update(ticket.id, {
-        status: "COMPLETED",
-        closed_at: now.toISOString(),
+        current_section: "reception",
+        notes: `Sale completed (${invoiceNum}) at ${ticket.current_section}. Waiting reception checkout.`,
         updated_at: now.toISOString(),
       });
 
+      // 4. Write audit log
+      try {
+        await auditLogsApi.create({
+          action: "SALE_COMPLETED",
+          entity_type: "sale",
+          entity_id: ticket.id,
+          new_values: {
+            ticket_number: ticket.ticket_number,
+            customer: ticket.customer?.name,
+            final_amount: form.final_amount,
+            payment_method: form.payment_method,
+            invoice_number: invoiceNum,
+            by: user?.full_name,
+          },
+          performed_by: user?.id,
+        });
+      } catch (e) { console.warn("Audit log failed:", e); }
+
       setLastInvoice(invoiceNum);
+      setMessageType("success");
+      setMessage(`✅ Sale completed! Invoice ${invoiceNum}. Customer returned to reception for final checkout.`);
       setTicket(null); setQuery("");
       setForm({ total_weight: "", making_charges: "", stone_weight: "", gst_amount: "", discount: "", final_amount: "", payment_method: "cash" });
       await loadSales();
@@ -132,7 +171,7 @@ export default function SalesBillingPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>Sales & Billing</h1>
-          <p className="text-sm text-gray-500 mt-1">Process sales and close tickets</p>
+          <p className="text-sm text-gray-500 mt-1">Process sales. After billing, customer returns to reception for final checkout.</p>
         </div>
         <button onClick={loadSales} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:border-indigo-300 transition">
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
@@ -168,11 +207,16 @@ export default function SalesBillingPage() {
             </div>
           )}
 
-          {lastInvoice && (
-            <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" /> Sale recorded! Invoice: <span className="font-mono font-bold">{lastInvoice}</span>
-            </div>
-          )}
+              {lastInvoice && (
+                <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" /> Sale recorded! Invoice: <span className="font-mono font-bold">{lastInvoice}</span>
+                </div>
+              )}
+              {message && (
+                <div className={`mb-4 p-3 rounded-xl text-sm font-medium flex items-center gap-2 animate-fade-in ${messageType === "success" ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+                  {messageType === "success" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />} {message}
+                </div>
+              )}
 
           {ticket && (
             <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-50 to-white border border-indigo-200 mb-5">
@@ -232,7 +276,7 @@ export default function SalesBillingPage() {
               disabled={!ticket || submitting || !form.final_amount || Number(form.final_amount) <= 0}
               onClick={submitSale}
             >
-              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : <><ShoppingBag className="w-4 h-4" /> Complete Sale & Close Ticket</>}
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : <><ShoppingBag className="w-4 h-4" /> Complete Sale & Return to Reception</>}
             </button>
           </div>
         </div>

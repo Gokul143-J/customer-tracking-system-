@@ -4,14 +4,12 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Ticket, UserPlus, Loader2, Phone, Search, CheckCircle2, XCircle,
-  Crown, Sparkles,
+  Crown,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { customersApi, ticketsApi } from "@/lib/supabase/database";
-import { formatDateTime, prettySection } from "@/lib/utils";
+import { customersApi, ticketsApi, auditLogsApi } from "@/lib/supabase/database";
+import { formatDateTime } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-
-const SECTIONS = ["gold", "silver", "diamond", "platinum"];
 
 export default function TicketGenerationPage() {
   const router = useRouter();
@@ -25,12 +23,10 @@ export default function TicketGenerationPage() {
   const [customer, setCustomer] = useState({
     name: "", phone: "", gender: "", age: "", city: "", remarks: "",
   });
-  const [targetSection, setTargetSection] = useState("gold");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdTicket, setCreatedTicket] = useState<any>(null);
 
-  // Generate unique ticket number using timestamp + random
   function generateTicketNumber(): string {
     const year = new Date().getFullYear();
     const ts = Date.now().toString(36).toUpperCase();
@@ -56,18 +52,6 @@ export default function TicketGenerationPage() {
     return null;
   }
 
-  function autoAssignSection(gender: string, age: string): string {
-    if (!gender || !age) return "gold";
-    const ageNum = parseInt(age);
-    if (isNaN(ageNum)) return "gold";
-    if (gender === "Female" && ageNum < 30) return "diamond";
-    if (gender === "Female" && ageNum >= 30) return "gold";
-    if (gender === "Male" && ageNum < 25) return "silver";
-    if (gender === "Male" && ageNum >= 25 && ageNum < 40) return "gold";
-    if (gender === "Male" && ageNum >= 40) return "platinum";
-    return "gold";
-  }
-
   const lookupPhone = useCallback(async () => {
     if (!phoneLookup.trim()) return;
     if (!validatePhone(phoneLookup)) {
@@ -83,9 +67,6 @@ export default function TicketGenerationPage() {
         name: c.name || "", phone: c.phone || "", gender: c.gender || "",
         age: c.age?.toString() || "", city: c.city || "", remarks: c.remarks || "",
       });
-      if (c.gender && c.age) {
-        setTargetSection(autoAssignSection(c.gender, c.age.toString()));
-      }
     } catch {
       setFoundCustomer(null);
       setCustomer((p) => ({ ...p, phone: phoneLookup.trim(), name: "" }));
@@ -98,7 +79,6 @@ export default function TicketGenerationPage() {
     e.preventDefault();
     setError(null);
 
-    // Validation
     const name = customer.name.trim();
     if (!name) { setError("Customer name is required"); return; }
     if (name.length < 2) { setError("Name must be at least 2 characters"); return; }
@@ -116,11 +96,6 @@ export default function TicketGenerationPage() {
       }
     }
 
-    if (!SECTIONS.includes(targetSection)) {
-      setError("Please select a valid section");
-      return;
-    }
-
     // Check for duplicate active ticket
     try {
       const existingCustomer = await customersApi.byPhone(customer.phone);
@@ -133,7 +108,7 @@ export default function TicketGenerationPage() {
           return;
         }
       }
-    } catch { /* Customer doesn't exist yet - that's fine */ }
+    } catch { /* Customer doesn't exist yet */ }
 
     setSubmitting(true);
     try {
@@ -164,11 +139,22 @@ export default function TicketGenerationPage() {
       const t = await ticketsApi.create({
         ticket_number: ticketNum,
         customer_id: customerId,
-        target_section: targetSection,
         current_section: "reception",
         status: "ACTIVE",
         created_by: user?.id,
       });
+
+      // Write audit log
+      try {
+        await auditLogsApi.create({
+          action: "TICKET_CREATED",
+          entity_type: "ticket",
+          entity_id: t.id,
+          new_values: { ticket_number: ticketNum, customer_id: customerId, created_by: user?.id },
+          performed_by: user?.id,
+        });
+      } catch (e) { console.warn("Audit log failed:", e); }
+
       setCreatedTicket(t);
       setStep("success");
     } catch (err: any) {
@@ -180,7 +166,6 @@ export default function TicketGenerationPage() {
 
   function resetForm() {
     setCustomer({ name: "", phone: "", gender: "", age: "", city: "", remarks: "" });
-    setTargetSection("gold");
     setPhoneLookup("");
     setFoundCustomer(null);
     setCreatedTicket(null);
@@ -221,8 +206,8 @@ export default function TicketGenerationPage() {
                 <div className="font-bold text-gray-900">{formatDateTime(createdTicket.created_at || new Date().toISOString())}</div>
               </div>
               <div>
-                <div className="text-xs text-gray-500">Assigned Section</div>
-                <div className="font-bold text-amber-700 capitalize">{prettySection(createdTicket.target_section || targetSection)}</div>
+                <div className="text-xs text-gray-500">Location</div>
+                <div className="font-bold text-emerald-700 capitalize">Reception</div>
               </div>
             </div>
 
@@ -231,7 +216,7 @@ export default function TicketGenerationPage() {
                 <QRCodeSVG value={createdTicket.ticket_number} size={160} level="H" includeMargin={true} />
               </div>
             </div>
-            <p className="text-xs text-gray-500 mt-3">Scan QR code for quick ticket lookup</p>
+            <p className="text-xs text-gray-500 mt-3">Scan QR code for quick check-in at any section</p>
           </div>
 
           <div className="mt-6 flex gap-3 justify-center flex-wrap">
@@ -322,7 +307,7 @@ export default function TicketGenerationPage() {
               <select
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
                 value={customer.gender}
-                onChange={(e) => { const gender = e.target.value; setCustomer({ ...customer, gender }); setTargetSection(autoAssignSection(gender, customer.age)); }}
+                onChange={(e) => setCustomer({ ...customer, gender: e.target.value })}
               >
                 <option value="">Select</option>
                 <option>Male</option>
@@ -338,7 +323,7 @@ export default function TicketGenerationPage() {
                 max="120"
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
                 value={customer.age}
-                onChange={(e) => { const age = e.target.value; setCustomer({ ...customer, age }); if (customer.gender) setTargetSection(autoAssignSection(customer.gender, age)); }}
+                onChange={(e) => setCustomer({ ...customer, age: e.target.value })}
                 placeholder="e.g. 32"
               />
             </div>
@@ -351,21 +336,6 @@ export default function TicketGenerationPage() {
                 placeholder="Mumbai"
                 maxLength={50}
               />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Assign to Section *</label>
-              <select
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
-                value={targetSection}
-                onChange={(e) => setTargetSection(e.target.value)}
-              >
-                {SECTIONS.map((s) => <option key={s} value={s}>{prettySection(s)}</option>)}
-              </select>
-              {customer.gender && customer.age && (
-                <p className="text-xs text-indigo-600 mt-1 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" /> Auto-suggested based on profile
-                </p>
-              )}
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Remarks</label>

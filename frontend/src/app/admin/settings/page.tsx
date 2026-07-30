@@ -57,7 +57,15 @@ export default function AdminSettings() {
     }
     setSaving(true);
     try {
-      await staffApi.create({ ...form, is_active: true });
+      const created = await staffApi.create({ ...form, is_active: true });
+      // Write audit log
+      await auditLogsApi.create({
+        action: "STAFF_CREATED",
+        entity_type: "staff",
+        entity_id: created.id,
+        new_values: { username: form.username, full_name: form.full_name, role: form.role, assigned_section: form.assigned_section },
+        performed_by: user?.id,
+      });
       setShowForm(false);
       setForm({ username: "", full_name: "", email: "", phone: "", password: "", role: "receptionist", assigned_section: "reception" });
       await load();
@@ -71,6 +79,13 @@ export default function AdminSettings() {
   async function toggleActive(s: any) {
     try {
       await staffApi.update(s.id, { is_active: !s.is_active });
+      await auditLogsApi.create({
+        action: "STAFF_STATUS_CHANGED",
+        entity_type: "staff",
+        entity_id: s.id,
+        new_values: { username: s.username, is_active: !s.is_active },
+        performed_by: user?.id,
+      });
       await load();
     } catch (e) {
       console.error(e);
@@ -198,41 +213,58 @@ export default function AdminSettings() {
       )}
 
       {/* Audit Tab */}
-      {tab === "audit" && (
-        <div className="rounded-2xl bg-white border border-gray-100 p-6 shadow-sm">
-          <h2 className="font-bold text-gray-900 mb-4">System Audit Logs ({logs.length})</h2>
-          {loading ? (
-            <div className="text-center py-10 text-gray-400"><Loader2 className="w-5 h-5 animate-spin inline mr-2" /> Loading…</div>
-          ) : logs.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">No audit entries yet</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-gray-500 border-b border-gray-100 text-xs uppercase tracking-wider">
-                    <th className="py-3 pr-4">When</th>
-                    <th className="py-3 pr-4">Action</th>
-                    <th className="py-3 pr-4">Entity</th>
-                    <th className="py-3 pr-4">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.map((l) => (
-                    <tr key={l.id} className="border-b border-gray-50">
-                      <td className="py-3 pr-4 text-gray-500 text-xs whitespace-nowrap">{formatDateTime(l.created_at)}</td>
-                      <td className="py-3 pr-4">
-                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs uppercase font-medium">{l.action}</span>
-                      </td>
-                      <td className="py-3 pr-4 text-gray-600">{l.entity_type}</td>
-                      <td className="py-3 text-gray-500 text-xs max-w-xs truncate">{l.details || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+              {tab === "audit" && (
+                <div className="rounded-2xl bg-white border border-gray-100 p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-bold text-gray-900">System Audit Logs</h2>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">{logs.length} entries</span>
+                  </div>
+                  {loading ? (
+                    <div className="text-center py-10 text-gray-400"><Loader2 className="w-5 h-5 animate-spin inline mr-2" /> Loading…</div>
+                  ) : logs.length === 0 ? (
+                    <div className="text-center py-10 text-gray-400">
+                      <Shield className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                      <div className="font-semibold text-gray-600">No audit entries yet</div>
+                      <div className="text-sm mt-1">Actions like creating staff, tickets, and check-ins will appear here</div>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-gray-500 border-b border-gray-100 text-xs uppercase tracking-wider">
+                            <th className="py-3 pr-4">When</th>
+                            <th className="py-3 pr-4">Action</th>
+                            <th className="py-3 pr-4">Entity</th>
+                            <th className="py-3 pr-4">Details</th>
+                            <th className="py-3">Performed By</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {logs.map((l) => {
+                            const details = l.new_values ? JSON.stringify(l.new_values) : (l.old_values ? JSON.stringify(l.old_values) : null);
+                            return (
+                              <tr key={l.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition">
+                                <td className="py-3 pr-4 text-gray-500 text-xs whitespace-nowrap">{formatDateTime(l.created_at)}</td>
+                                <td className="py-3 pr-4">
+                                  <span className={`px-2 py-0.5 rounded text-xs uppercase font-medium ${
+                                    l.action?.includes("CREATE") ? "bg-emerald-100 text-emerald-700" :
+                                    l.action?.includes("CHECK") ? "bg-indigo-100 text-indigo-700" :
+                                    l.action?.includes("SALE") ? "bg-amber-100 text-amber-700" :
+                                    "bg-gray-100 text-gray-700"
+                                  }`}>{l.action || "—"}</span>
+                                </td>
+                                <td className="py-3 pr-4 text-gray-600 capitalize">{l.entity_type || "—"}</td>
+                                <td className="py-3 pr-4 text-gray-500 text-xs max-w-xs truncate" title={details || ""}>{details || "—"}</td>
+                                <td className="py-3 text-gray-400 text-xs">{l.performed_by ? "Admin" : "System"}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
     </div>
   );
 }

@@ -43,10 +43,10 @@ export default function AdminDashboard() {
   ];
 
   const metrics = [
-    { label: "Total Customers", value: stats?.totalCustomers || 0, trend: "+12%", positive: true, icon: <Users className="w-5 h-5" />, gradient: "from-amber-400 to-amber-600" },
-    { label: "Active Tickets", value: stats?.activeTickets || 0, trend: "Live", positive: true, icon: <Activity className="w-5 h-5" />, gradient: "from-emerald-400 to-emerald-600" },
-    { label: "Today's Visitors", value: stats?.todayTickets || 0, trend: "+8%", positive: true, icon: <UserCheck className="w-5 h-5" />, gradient: "from-indigo-400 to-indigo-600" },
-    { label: "Revenue Today", value: `₹${(stats?.revenueToday || 0).toLocaleString("en-IN")}`, trend: "+15%", positive: true, icon: <IndianRupee className="w-5 h-5" />, gradient: "from-rose-400 to-rose-600" },
+    { label: "Today's Visitors", value: stats?.todayTickets || 0, trend: "Live", positive: true, icon: <Users className="w-5 h-5" />, gradient: "from-amber-400 to-amber-600" },
+    { label: "Active Now", value: stats?.activeTickets || 0, trend: "In store", positive: true, icon: <Activity className="w-5 h-5" />, gradient: "from-emerald-400 to-emerald-600" },
+    { label: "Checked Out Today", value: stats?.completedToday || 0, trend: "Completed", positive: true, icon: <UserCheck className="w-5 h-5" />, gradient: "from-indigo-400 to-indigo-600" },
+    { label: "Revenue Today", value: `₹${(stats?.revenueToday || 0).toLocaleString("en-IN")}`, trend: "Sales", positive: true, icon: <IndianRupee className="w-5 h-5" />, gradient: "from-rose-400 to-rose-600" },
   ];
 
   return (

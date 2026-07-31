@@ -98,7 +98,7 @@ export default function LandingPage() {
         </div>
 
         <p className="text-xs text-gray-600 mt-10">
-          © 2026 Royal Jewellers · Enterprise CRM System
+          © 2026 Royal Jewellers · Enterprise CTS Platform
         </p>
       </div>
     </div>

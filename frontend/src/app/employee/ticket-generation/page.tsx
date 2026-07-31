@@ -21,7 +21,7 @@ export default function TicketGenerationPage() {
   const [foundCustomer, setFoundCustomer] = useState<any>(null);
 
   const [customer, setCustomer] = useState({
-    name: "", phone: "", gender: "", age: "", city: "", remarks: "",
+    name: "", phone: "", gender: "", age: "", remarks: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +65,7 @@ export default function TicketGenerationPage() {
       setFoundCustomer(c);
       setCustomer({
         name: c.name || "", phone: c.phone || "", gender: c.gender || "",
-        age: c.age?.toString() || "", city: c.city || "", remarks: c.remarks || "",
+        age: c.age?.toString() || "", remarks: c.remarks || "",
       });
     } catch {
       setFoundCustomer(null);
@@ -165,7 +165,7 @@ export default function TicketGenerationPage() {
   }
 
   function resetForm() {
-    setCustomer({ name: "", phone: "", gender: "", age: "", city: "", remarks: "" });
+    setCustomer({ name: "", phone: "", gender: "", age: "", remarks: "" });
     setPhoneLookup("");
     setFoundCustomer(null);
     setCreatedTicket(null);
@@ -327,16 +327,7 @@ export default function TicketGenerationPage() {
                 placeholder="e.g. 32"
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">City</label>
-              <input
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition"
-                value={customer.city}
-                onChange={(e) => setCustomer({ ...customer, city: e.target.value })}
-                placeholder="Mumbai"
-                maxLength={50}
-              />
-            </div>
+
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Remarks</label>
               <textarea

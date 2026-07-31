@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem("crm_user");
+    const stored = localStorage.getItem("cts_user");
     if (stored) {
       try { setUser(JSON.parse(stored)); } catch {}
     }
@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginAdmin = useCallback(async (username: string, password: string) => {
     const u = await authApi.adminLogin(username, password);
     const info: UserInfo = u as any;
-    localStorage.setItem("crm_user", JSON.stringify(info));
+    localStorage.setItem("cts_user", JSON.stringify(info));
     setUser(info);
     return info;
   }, []);
@@ -49,13 +49,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginEmployee = useCallback(async (username: string, password: string) => {
     const u = await authApi.employeeLogin(username, password);
     const info: UserInfo = u as any;
-    localStorage.setItem("crm_user", JSON.stringify(info));
+    localStorage.setItem("cts_user", JSON.stringify(info));
     setUser(info);
     return info;
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("crm_user");
+    localStorage.removeItem("cts_user");
     setUser(null);
     router.push("/");
   }, [router]);

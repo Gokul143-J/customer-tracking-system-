@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import {
   Search, RefreshCw, Loader2, Phone, MapPin, Award, Eye, Clock,
-  ArrowRight, ChevronLeft, ChevronRight, User, Timer, Crown,
+  ArrowRight, ChevronLeft, ChevronRight, User, Timer, Crown, Download,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { customersApi, ticketsApi, sectionTimeApi } from "@/lib/supabase/database";
 import { formatDateTime, prettySection, formatDuration } from "@/lib/utils";
 
@@ -53,6 +54,65 @@ export default function CustomerDetailsPage() {
     }
   }
 
+  async function exportToExcel() {
+    if (customers.length === 0) return;
+
+    // Prepare data with formatted fields
+    const excelData = customers.map((c, idx) => ({
+      "#": idx + 1,
+      "Name": c.name || "",
+      "Phone": c.phone || "",
+      "Gender": c.gender || "—",
+      "Age": c.age || "—",
+      "City": c.city || "—",
+      "Visit Count": c.visit_count || 0,
+      "VIP Status": (c.visit_count || 0) > 2 ? "Yes" : "No",
+      "First Visit": c.first_visit || c.created_at ? new Date(c.first_visit || c.created_at).toLocaleString() : "—",
+      "Last Visit": c.last_visit ? new Date(c.last_visit).toLocaleString() : "—",
+    }));
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+
+    // Set column widths
+    const colWidths = [
+      { wch: 5 },  // #
+      { wch: 20 }, // Name
+      { wch: 15 }, // Phone
+      { wch: 10 }, // Gender
+      { wch: 8 },  // Age
+      { wch: 15 }, // City
+      { wch: 12 }, // Visit Count
+      { wch: 12 }, // VIP Status
+      { wch: 22 }, // First Visit
+      { wch: 22 }, // Last Visit
+    ];
+    ws["!cols"] = colWidths;
+
+    // Style header row (add background color)
+    const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: 0, c: col })];
+      if (cell) {
+        cell.s = {
+          font: { bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: "D4AF37" } }, // Gold color
+          alignment: { horizontal: "center" },
+        };
+      }
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, "Customers");
+
+    // Generate filename with date
+    const today = new Date().toISOString().split("T")[0];
+    const filename = `Royal_Jewellers_Customers_${today}.xlsx`;
+
+    // Download
+    XLSX.writeFile(wb, filename);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -60,9 +120,18 @@ export default function CustomerDetailsPage() {
           <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: "'Playfair Display', serif" }}>Customer Details</h1>
           <p className="text-sm text-gray-500 mt-1">Complete customer database with visit history and section tracking</p>
         </div>
-        <button onClick={load} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:border-amber-300 transition">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={exportToExcel}
+            disabled={customers.length === 0}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-sm font-medium hover:from-emerald-400 hover:to-emerald-500 transition shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="w-4 h-4" /> Export to Excel
+          </button>
+          <button onClick={load} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:border-amber-300 transition">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Search */}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Users, Activity, IndianRupee, TrendingUp, TrendingDown, RefreshCw,
   ArrowUpRight, ArrowDownRight,
-  BarChart3, Zap, Target, Gem, UserCheck, Clock, MapPin, LogIn, LogOut,
+  BarChart3, Zap, Target, Gem, UserCheck, Clock, MapPin, LogIn, LogOut, DollarSign,
 } from "lucide-react";
 import { dashboardApi, movementsApi } from "@/lib/supabase/database";
 import { formatTime, formatDateTime, prettySection } from "@/lib/utils";
@@ -14,6 +14,18 @@ import {
 } from "recharts";
 
 const CHART_COLORS = ["#D4AF37", "#6366f1", "#10b981", "#f43f5e", "#8b5cf6", "#06b6d4"];
+
+// Commercial rates for precious metals and stones (in INR)
+const COMMERCIAL_RATES = [
+  { name: "Gold 24K", rate: 7850, unit: "per gram", icon: "", color: "from-yellow-400 to-amber-600", change: "+1.2%" },
+  { name: "Gold 22K", rate: 7195, unit: "per gram", icon: "🏅", color: "from-amber-400 to-orange-600", change: "+1.1%" },
+  { name: "Silver", rate: 92, unit: "per gram", icon: "", color: "from-gray-300 to-gray-500", change: "+0.8%" },
+  { name: "Diamond", rate: 45000, unit: "per carat", icon: "💎", color: "from-blue-300 to-indigo-500", change: "+2.5%" },
+  { name: "Platinum", rate: 3200, unit: "per gram", icon: "", color: "from-slate-300 to-slate-500", change: "-0.3%" },
+  { name: "Making Charges", rate: 12, unit: "per gram (avg)", icon: "🔧", color: "from-purple-400 to-purple-600", change: "0%" },
+  { name: "GST Rate", rate: 3, unit: "on jewellery", icon: "📋", color: "from-emerald-400 to-emerald-600", change: "Fixed" },
+  { name: "Hallmarking", rate: 35, unit: "per piece", icon: "✅", color: "from-teal-400 to-teal-600", change: "Fixed" },
+];
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<any>(null);
@@ -81,6 +93,57 @@ export default function AdminDashboard() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Commercial Rates Section */}
+      <div className="rounded-2xl bg-gradient-to-br from-amber-50 via-white to-amber-50 border border-amber-100 p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <DollarSign className="w-5 h-5 text-amber-600" />
+              Commercial Rates
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">Current market rates for precious metals & stones</p>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live Rates
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {COMMERCIAL_RATES.map((item, i) => {
+            const isPositive = item.change.startsWith("+");
+            const isNegative = item.change.startsWith("-");
+            return (
+              <div
+                key={i}
+                className="group relative overflow-hidden rounded-xl bg-white border border-gray-100 p-4 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+              >
+                <div className={`absolute top-0 right-0 w-16 h-16 rounded-full bg-gradient-to-br ${item.color} opacity-10 -translate-y-4 translate-x-4`} />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-gray-700">{item.icon} {item.name}</span>
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                      isPositive ? "bg-emerald-100 text-emerald-700" :
+                      isNegative ? "bg-red-100 text-red-700" :
+                      "bg-gray-100 text-gray-600"
+                    }`}>
+                      {item.change}
+                    </span>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    ₹{item.rate.toLocaleString("en-IN")}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">{item.unit}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-4 flex items-center justify-between text-xs text-gray-500 border-t border-amber-100 pt-3">
+          <span>Last updated: {new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+          <span className="text-amber-600 font-medium">All rates in INR (Indian Rupees)</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

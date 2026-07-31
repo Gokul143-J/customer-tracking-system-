@@ -3,7 +3,7 @@ import "./globals.css";
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "Royal Jewellers CRM",
+  title: "Royal Jewellers CTS",
   description: "Customer Journey Management System",
 };
 

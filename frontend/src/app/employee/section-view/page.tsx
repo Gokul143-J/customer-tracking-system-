@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import type { Html5Qrcode } from "html5-qrcode";
 import {
   Users, RefreshCw, Loader2, CheckCircle2, XCircle,
   Phone, MapPin, Timer, Keyboard, Crown, Award, TimerReset, QrCode, Camera,

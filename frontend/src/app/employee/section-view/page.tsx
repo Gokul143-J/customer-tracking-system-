@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import type { Html5Qrcode } from "html5-qrcode";
 import {
   Users, RefreshCw, Loader2, CheckCircle2, XCircle,
   Phone, MapPin, Timer, Keyboard, Crown, Award, TimerReset, QrCode, Camera,
@@ -10,6 +9,8 @@ import {
 import { ticketsApi, sectionTimeApi, movementsApi, auditLogsApi } from "@/lib/supabase/database";
 import { useAuth } from "@/context/AuthContext";
 import { formatDateTime, formatDuration, prettySection } from "@/lib/utils";
+
+const VALID_SECTIONS = ["gold", "silver", "diamond", "platinum"];
 
 export default function SectionViewPage() {
   const router = useRouter();
@@ -25,64 +26,7 @@ export default function SectionViewPage() {
   const [scannerActive, setScannerActive] = useState(false);
 
   const mySection = user?.assigned_section || "";
-  const qrScannerRef = useRef<Html5Qrcode | null>(null);
-
-  // QR Scanner effect
-  useEffect(() => {
-    if (!scannerActive) return;
-
-    const startScanner = async () => {
-      try {
-        // Dynamic import to avoid SSR build errors on Vercel
-        const { Html5Qrcode } = await import("html5-qrcode");
-
-        // Create scanner if it doesn't exist
-        if (!qrScannerRef.current) {
-          qrScannerRef.current = new Html5Qrcode("qr-reader");
-        }
-
-        // Start scanning
-        await qrScannerRef.current.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          async (decodedText) => {
-            // Stop scanner after successful scan
-            try {
-              await qrScannerRef.current?.stop();
-            } catch (e) {
-              // Ignore stop errors
-            }
-            setScannerActive(false);
-            await handleCheckIn(decodedText);
-          },
-          () => {
-            // Ignore scan failures (no QR detected yet)
-          }
-        );
-      } catch (err: any) {
-        console.error("Scanner start failed:", err);
-        const errorMessage = typeof err === "string" ? err : err?.message || "Unknown error";
-        setMessageType("error");
-        setMessage(`Camera error: ${errorMessage}. Use manual entry instead.`);
-        setScannerActive(false);
-      }
-    };
-
-    startScanner();
-
-    // Cleanup function
-    return () => {
-      if (qrScannerRef.current) {
-        try {
-          qrScannerRef.current.stop().catch(() => {
-            // Ignore stop errors during cleanup
-          });
-        } catch (e) {
-          // Ignore errors
-        }
-      }
-    };
-  }, [scannerActive]);
+  const qrScannerRef = useRef<any>(null);
 
   useEffect(() => {
     if (user && user.role === "section_manager" && !user.assigned_section) {
@@ -97,7 +41,6 @@ export default function SectionViewPage() {
     try {
       const all = await ticketsApi.list("ACTIVE");
       setAllActiveTickets(all);
-      // Show only customers currently checked in to MY section
       const inMySection = all.filter((t: any) => t.current_section === mySection);
       setCustomers(inMySection);
     } catch (e) { console.error(e); } finally { setLoading(false); }
@@ -116,17 +59,10 @@ export default function SectionViewPage() {
 
   async function writeAuditLog(action: string, entityType: string, entityId: string, details: any) {
     try {
-      await auditLogsApi.create({
-        action,
-        entity_type: entityType,
-        entity_id: entityId,
-        new_values: details,
-        performed_by: user?.id,
-      });
+      await auditLogsApi.create({ action, entity_type: entityType, entity_id: entityId, new_values: details, performed_by: user?.id });
     } catch (e) { console.warn("Audit log failed:", e); }
   }
 
-  // Check-in: by ticket number OR QR code
   async function handleCheckIn(ticketNumber: string) {
     setProcessing(true); setMessage(null);
     try {
@@ -145,7 +81,6 @@ export default function SectionViewPage() {
       const fromSection = ticket.current_section || "idle";
       const existingLogs = await sectionTimeApi.byTicket(ticket.id);
 
-      // Close any open time log for previous section
       const openExitLog = existingLogs.find((l: any) => l.section === fromSection && !l.exit_time);
       if (!openExitLog && fromSection !== "idle") {
         await sectionTimeApi.create({
@@ -158,7 +93,6 @@ export default function SectionViewPage() {
         });
       }
 
-      // Record movement
       await movementsApi.create({
         ticket_id: ticket.id,
         customer_id: ticket.customer_id,
@@ -168,10 +102,8 @@ export default function SectionViewPage() {
         time_spent_seconds: 0,
       });
 
-      // Update ticket to my section
       await ticketsApi.update(ticket.id, { current_section: mySection, updated_at: now.toISOString() });
 
-      // Open new time log for my section
       const alreadyHasMyEntry = existingLogs.some((l: any) => l.section === mySection && !l.exit_time);
       if (!alreadyHasMyEntry) {
         await sectionTimeApi.create({
@@ -204,7 +136,6 @@ export default function SectionViewPage() {
     }
   }
 
-  // Check-out: customer leaves section
   async function handleCheckout(action: "buying" | "idle") {
     if (!checkoutModal) return;
     setProcessing(true);
@@ -212,7 +143,6 @@ export default function SectionViewPage() {
       const now = new Date();
       const ticket = checkoutModal;
 
-      // Close open time log for my section
       const timeLogs = await sectionTimeApi.byTicket(ticket.id);
       const currentEntry = timeLogs.filter((l: any) => l.section === mySection && !l.exit_time).pop();
       if (currentEntry) {
@@ -229,7 +159,6 @@ export default function SectionViewPage() {
         });
         router.push("/employee/sales-billing");
       } else {
-        // Customer becomes IDLE - no section, waits to be checked in again
         await movementsApi.create({
           ticket_id: ticket.id,
           customer_id: ticket.customer_id,
@@ -239,7 +168,6 @@ export default function SectionViewPage() {
           time_spent_seconds: 0,
         });
 
-        // Set current_section to null (idle state)
         await ticketsApi.update(ticket.id, { current_section: null, updated_at: now.toISOString() });
 
         await writeAuditLog("CUSTOMER_CHECKED_OUT_IDLE", "ticket", ticket.id, {
@@ -272,15 +200,59 @@ export default function SectionViewPage() {
   const closeScanner = async () => {
     setScannerActive(false);
     if (qrScannerRef.current) {
-      try {
-        await qrScannerRef.current.stop();
-      } catch (e) {
-        // Ignore stop errors
-      }
+      try { await qrScannerRef.current.stop(); } catch (e) {}
       qrScannerRef.current.clear();
       qrScannerRef.current = null;
     }
   };
+
+  // QR Scanner effect - uses dynamic import to avoid SSR issues
+  useEffect(() => {
+    if (!scannerActive) return;
+
+    let cancelled = false;
+
+    const startScanner = async () => {
+      try {
+        // Dynamic import - only runs in browser
+        const { Html5Qrcode } = await import("html5-qrcode");
+        if (cancelled) return;
+
+        if (!qrScannerRef.current) {
+          qrScannerRef.current = new Html5Qrcode("qr-reader");
+        }
+
+        await qrScannerRef.current.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          async (decodedText: string) => {
+            try { await qrScannerRef.current?.stop(); } catch (e) {}
+            if (!cancelled) {
+              setScannerActive(false);
+              await handleCheckIn(decodedText);
+            }
+          },
+          () => {}
+        );
+      } catch (err: any) {
+        if (!cancelled) {
+          const errorMessage = typeof err === "string" ? err : err?.message || "Unknown error";
+          setMessageType("error");
+          setMessage(`Camera error: ${errorMessage}. Use manual entry instead.`);
+          setScannerActive(false);
+        }
+      }
+    };
+
+    startScanner();
+
+    return () => {
+      cancelled = true;
+      if (qrScannerRef.current) {
+        try { qrScannerRef.current.stop(); } catch (e) {}
+      }
+    };
+  }, [scannerActive, mySection]);
 
   if (!mySection) {
     return (
@@ -438,7 +410,7 @@ export default function SectionViewPage() {
                   onClick={() => router.push("/employee/sales-billing")}
                   className="px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white text-sm font-semibold hover:from-indigo-400 hover:to-indigo-500 transition flex items-center justify-center gap-1.5"
                 >
-                   Sale
+                  💰 Sale
                 </button>
               </div>
             </div>
@@ -464,14 +436,14 @@ export default function SectionViewPage() {
                 disabled={processing}
                 className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold hover:from-emerald-400 hover:to-emerald-500 transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                 Customer is Buying → Go to Billing
+                💰 Customer is Buying → Go to Billing
               </button>
               <button
                 onClick={() => handleCheckout("idle")}
                 disabled={processing}
                 className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-gray-400 to-gray-500 text-white font-semibold hover:from-gray-300 hover:to-gray-400 transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                 Customer is Idle (waiting for next section)
+                🕐 Customer is Idle (waiting for next section)
               </button>
               <button
                 onClick={() => setCheckoutModal(null)}

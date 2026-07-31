@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Html5Qrcode } from "html5-qrcode";
 import {
   Users, RefreshCw, Loader2, CheckCircle2, XCircle,
   Phone, MapPin, Timer, Keyboard, Crown, Award, TimerReset, QrCode, Camera,
@@ -33,6 +32,9 @@ export default function SectionViewPage() {
 
     const startScanner = async () => {
       try {
+        // Dynamic import to avoid SSR build errors on Vercel
+        const { Html5Qrcode } = await import("html5-qrcode");
+
         // Create scanner if it doesn't exist
         if (!qrScannerRef.current) {
           qrScannerRef.current = new Html5Qrcode("qr-reader");

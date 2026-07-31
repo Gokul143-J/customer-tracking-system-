@@ -5,7 +5,6 @@ import {
   Search, RefreshCw, Loader2, Phone, MapPin, Award, Eye, Clock,
   ArrowRight, ChevronLeft, ChevronRight, User, Timer, Crown, Download,
 } from "lucide-react";
-import * as XLSX from "xlsx";
 import { customersApi, ticketsApi, sectionTimeApi } from "@/lib/supabase/database";
 import { formatDateTime, prettySection, formatDuration } from "@/lib/utils";
 
@@ -57,6 +56,9 @@ export default function CustomerDetailsPage() {
   async function exportToExcel() {
     if (customers.length === 0) return;
 
+    // Dynamic import to avoid SSR build errors
+    const XLSX = await import("xlsx");
+
     // Prepare data with formatted fields
     const excelData = customers.map((c, idx) => ({
       "#": idx + 1,
@@ -77,31 +79,18 @@ export default function CustomerDetailsPage() {
 
     // Set column widths
     const colWidths = [
-      { wch: 5 },  // #
-      { wch: 20 }, // Name
-      { wch: 15 }, // Phone
-      { wch: 10 }, // Gender
-      { wch: 8 },  // Age
-      { wch: 15 }, // City
-      { wch: 12 }, // Visit Count
-      { wch: 12 }, // VIP Status
-      { wch: 22 }, // First Visit
-      { wch: 22 }, // Last Visit
+      { wch: 5 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 10 },
+      { wch: 8 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 22 },
+      { wch: 22 },
     ];
     ws["!cols"] = colWidths;
-
-    // Style header row (add background color)
-    const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
-    for (let col = range.s.c; col <= range.e.c; col++) {
-      const cell = ws[XLSX.utils.encode_cell({ r: 0, c: col })];
-      if (cell) {
-        cell.s = {
-          font: { bold: true, color: { rgb: "FFFFFF" } },
-          fill: { fgColor: { rgb: "D4AF37" } }, // Gold color
-          alignment: { horizontal: "center" },
-        };
-      }
-    }
 
     XLSX.utils.book_append_sheet(wb, ws, "Customers");
 
